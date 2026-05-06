@@ -1,0 +1,41 @@
+Dit is de wishlist voor het **KAES** — *Karakter Analyse Expert Systeem* — **prototype**.
+
+- **Gebruikersrollen**:
+  - App-beheerders
+  - Coaches
+  - Studenten
+
+- **Functionaliteit**:
+  - *App-beheerders*:
+    - Gebruikers CRUD
+    - Gebruikersrollen tonen
+    - Opleidingen CRUD
+    - Opleidingsprofielen CRUD
+    - Dimensies CRUD
+    - Vragen CRUD
+    - Uitnodigingen CRUD
+    - Testen maken
+    - Testresultaten tonen en verwijderen
+    - Adviezen CRUD
+    - Aanbevelingen CRUD
+    - Hulpteksten CRUD
+    - ?
+  - *Coaches*:
+    - Studenten CRUD
+    - Vragen CRUD
+    - Uitnodigingen CRUD
+    - Testen maken
+    - Testresultaten tonen en verwijderen
+    - Adviezen CRUD
+    - Aanbevelingen CRUD
+    - Hulpteksten CRUD
+    - ?
+  - *Studenten*:
+    - Vragen beantwoorden
+    - Uitnodigingen R
+    - Testen maken
+    - Testresultaten tonen
+    - Adviezen tonen
+    - Aanbevelingen tonen
+    - Hulpteksten tonen
+    - ?
