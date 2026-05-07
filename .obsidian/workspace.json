@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Documentatie/Functionality Document.md",
+                "file": "Documentatie/Planning.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Functionality Document"
+              "title": "Planning"
             }
           }
         ]
@@ -205,9 +205,10 @@
   },
   "active": "edca456df429e7e8",
   "lastOpenFiles": [
+    "Documentatie/Test Document.md",
+    "Documentatie/Functionality Document.md",
     "Origineel/kaes-wishlist.md",
     "Origineel/kaes-abstract.md",
-    "Documentatie/Functionality Document.md",
     "Documentatie/Design Document.md"
   ]
 }

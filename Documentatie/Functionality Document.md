@@ -13,3 +13,7 @@ Ze moeten nieuwe studenten kunnen maken, nieuwe vragen aan tests kunnen toevoege
 ## App-beheerders
 App-beheerders moeten hetzelfde kunnen doen als coaches, met een paar extra functies.
 Ze moeten elk type gebruiker kunnen maken, opleidingen, opleidingsprofielen, en vragen kunnen maken.
+
+# Walk-through voor een gebruiker
+
+Een gebruiker logt in met een gebruikersnaam en wachtwoord. Studenten maken tests, coaches kunnen studenten uitnodigen voor het maken van een test, en de resultaten bekijken. Een beheerder kan nieuwe coaches toevoegen, aanpassen, en in principe alles aanpassen.
