@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login site</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Auto-dismiss animation styles */
+        .flash-message {
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .flash-message.fade-out {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+    </style>
+</head>
+<body>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul class="flashes" id="flash-container">
+        {% for category, message in messages %}
+          <li class="flash-message {{ category }}">{{ message }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+    {% block body %}{% endblock %}
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const flashMessages = document.querySelectorAll('.flash-message');
+            const displayDuration = 3000; // Time visible before fading (3 seconds)
+            const fadeDuration = 500;     // Time to fade out (0.5 seconds)
+            
+            flashMessages.forEach((message, index) => {
+                // Stagger start times slightly if multiple messages
+                const startDelay = index * 200;
+                
+                setTimeout(() => {
+                    // Start fade out
+                    message.classList.add('fade-out');
+                    
+                    // Remove from DOM after fade completes
+                    setTimeout(() => {
+                        message.style.height = message.offsetHeight + 'px';
+                        message.style.margin = '0';
+                        message.style.padding = '0';
+                        message.style.overflow = 'hidden';
+                        
+                        // Animate height to 0 for smooth collapse
+                        requestAnimationFrame(() => {
+                            message.style.transition = 'all 0.3s ease-out';
+                            message.style.height = '0';
+                            message.style.border = 'none';
+                            
+                            setTimeout(() => {
+                                message.remove();
+                            }, 300);
+                        });
+                    }, fadeDuration);
+                    
+                }, displayDuration + startDelay);
+            });
+            
+            // Clean up empty container
+            const container = document.getElementById('flash-container');
+            if (container && container.children.length === 0) {
+                container.remove();
+            }
+        });
+    </script>
+</body>
+</html>
