@@ -1,0 +1,16 @@
+{
+	"nodes":[
+		{"id":"3069d5d96e4b3a20","type":"text","text":"**User**\nstring username\nhash password\nint permissions\nstring login_token\nexams","x":-480,"y":-46,"width":250,"height":211},
+		{"id":"c8c40f5805b6f374","type":"text","text":"**User-permission join**\nuser\npermission","x":-140,"y":-46,"width":250,"height":104},
+		{"id":"b01f66d53ec11bfe","type":"text","text":"**Permission**\nint ID\nstring name","x":140,"y":-46,"width":250,"height":104},
+		{"id":"472a9df7057e6de3","type":"text","text":"**Exam**\nquestions\nint endscores","x":-140,"y":113,"width":250,"height":105},
+		{"id":"0bf3fde2eb78de4c","type":"text","text":"**Question**\nstring question\nint answer\nint scorechanges","x":160,"y":108,"width":250,"height":115}
+	],
+	"edges":[
+		{"id":"6aabe06bb3790410","fromNode":"c8c40f5805b6f374","fromSide":"right","toNode":"b01f66d53ec11bfe","toSide":"left","toEnd":"none"},
+		{"id":"204c1279cca91687","fromNode":"3069d5d96e4b3a20","fromSide":"right","toNode":"c8c40f5805b6f374","toSide":"left","toEnd":"none"},
+		{"id":"c1c438af712e2551","fromNode":"472a9df7057e6de3","fromSide":"right","toNode":"0bf3fde2eb78de4c","toSide":"left"},
+		{"id":"99b0853bc5a2d991","fromNode":"3069d5d96e4b3a20","fromSide":"right","toNode":"472a9df7057e6de3","toSide":"left"},
+		{"id":"d00e4c504b0d5bf3","fromNode":"3069d5d96e4b3a20","fromSide":"right","toNode":"c8c40f5805b6f374","toSide":"left"}
+	]
+}

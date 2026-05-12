@@ -1,5 +1,7 @@
 
-from flask import Flask, render_template, flash
+from flask import Flask, render_template, flash, g
+
+from KAESdatabase import kaes_database
 from flask_session import Session
 from flask_wtf.csrf import CSRFProtect
 
@@ -13,6 +15,12 @@ app.config['SESSION_USE_SIGNER'] = True  # Sign session IDs for security
 csrf = CSRFProtect(app)
 Session(app)
 
+def get_db():
+    if 'db' not in g:
+        # Initialize your class
+        g.db_wrapper = kaes_database()
+        g.db = g.db_wrapper.get_connection()
+    return g.db
 
 @app.route('/', methods=['GET', 'POST'])
 def log_in():  # put application's code here
