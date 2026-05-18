@@ -1,3 +1,7 @@
+from sqlite3 import Cursor  # Note: You can likely remove this if you're only using MySQL
+from time import time
+
+import bcrypt
 import mysql.connector
 import paramiko
 import socket
@@ -8,6 +12,7 @@ import SECRETS
 
 
 class kaes_database:
+
     # region Boilerplate
     def __init__(self):
         # SSH Settings
@@ -64,6 +69,7 @@ class kaes_database:
                 port=self.local_bind_port,
                 user=self.db_user,
                 password=self.db_password,
+                database='nbuch'
             )
 
             if self.connection.is_connected():
@@ -112,7 +118,6 @@ class kaes_database:
                 sock.close()
 
         except Exception:
-            # Thread will exit on socket close or other errors
             pass
         finally:
             if chan:
@@ -155,11 +160,66 @@ class kaes_database:
 
     # endregion
 
+    def get_cursor(self, dictionary=False):
+        """
+        Helper method to quickly grab a cursor.
+        Setting dictionary=True returns rows as dicts instead of tuples.
+        """
+        return self.connection.cursor(dictionary=dictionary)
+
     def login(self, username, password):
-        cursor = self.connection.cursor()
-        query = "SELECT * FROM users WHERE username = %s"
-        cursor.execute(query, (username))
-        print(cursor.fetchall())
-        if cursor.rowcount == 0:
-            return False
-        return True
+        # 1. Use context manager ('with') so the cursor auto-closes when done
+        with self.get_cursor(dictionary=True) as cursor:
+            query = "SELECT password FROM users WHERE username = %s"
+
+            # Note: Arguments must be passed as a tuple/list: (username,)
+            cursor.execute(query, (username,))
+            user = cursor.fetchone()
+
+            # If user doesn't exist
+            if not user:
+                return False
+
+            return bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8'))
+
+    def add_user(self, username, password):
+        with self.get_cursor() as cursor:
+            query = "INSERT INTO users (username, password) VALUES (%s, %s)"
+
+            # Generate hash and decode to string so it stores nicely in a VARCHAR field
+            hashpass = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+            cursor.execute(query, (username, hashpass))
+            self.connection.commit()
+
+    def get_user_permissions(self, username):
+        """
+        Fetches the user's ID and an array of their assigned permission names
+        matching the 'users', 'userpermissions', and 'permissions' schema.
+        """
+        with self.get_cursor(dictionary=True) as cursor:
+            # First, verify the user exists and grab their ID
+            user_query = "SELECT id FROM users WHERE username = %s"
+            cursor.execute(user_query, (username,))
+            user = cursor.fetchone()
+
+            if not user:
+                return None  # User doesn't exist or was deleted
+
+            # Next, grab all permission strings linked to this user's ID
+            perm_query = """
+                SELECT p.name 
+                FROM userpermissions up
+                JOIN permissions p ON up.permission = p.id
+                WHERE up.user = %s
+            """
+            cursor.execute(perm_query, (user['id'],))
+            rows = cursor.fetchall()
+
+            # Extract permission names into a clean list: ['admin', 'student'] etc.
+            permissions_list = [row['name'] for row in rows]
+
+            return {
+                'id': user['id'],
+                'permissions': permissions_list
+            }
