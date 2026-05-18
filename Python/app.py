@@ -5,7 +5,7 @@ from flask import Flask, render_template, flash, g, session, redirect, url_for
 from KAESdatabase import kaes_database
 from flask_session import Session
 from flask_wtf.csrf import CSRFProtect
-from forms import LoginForm
+from forms import LoginForm, CreateUserForm
 from functools import wraps
 app = Flask(__name__)
 
@@ -99,9 +99,58 @@ def dashboard():
     return render_template('dashboard.html')
 
 
-@app.route('/admin')
-def admin_dashboard():
-    return render_template('admin_dashboard.html')
+@app.route('/user_management', methods=['GET', 'POST'])
+@permission_required('admin')  # Protect the route!
+def user_management():
+    if 'user' not in session:
+        return redirect(url_for('log_in'))
+
+    db = get_db()
+    form = CreateUserForm()
+
+    # Handle user creation
+    if form.validate_on_submit():
+        try:
+            db.add_user(form.username.data, form.password.data)
+            flash(f"User '{form.username.data}' created successfully!", "success")
+            return redirect(url_for('user_management'))
+        except Exception as e:
+            flash("Error creating user. Username might already exist.", "danger")
+
+    # Fetch data to present in template
+    all_users = db.get_all_users()
+    all_permissions = db.get_all_available_permissions()
+
+    return render_template('user_management.html', form=form, users=all_users, available_permissions=all_permissions)
+
+
+@app.route('/user_management/delete/<int:user_id>', methods=['POST'])
+@permission_required('admin')
+def delete_user(user_id):
+    # Prevent an admin from deleting themselves accidentally
+    if g.user_id == user_id:
+        flash("You cannot delete your own account!", "danger")
+        return redirect(url_for('user_management'))
+
+    db = get_db()
+    db.delete_user(user_id)
+    flash("User deleted successfully.", "success")
+    return redirect(url_for('user_management'))
+
+
+@app.route('/user_management/update_permissions/<int:user_id>', methods=['POST'])
+@permission_required('admin')
+def update_permissions(user_id):
+    import flask  # To grab raw request form values
+    db = get_db()
+
+    # Get all checked permission checkboxes for this specific user
+    # HTML input names will be structured like: permissions_{{ user_id }}
+    selected_perms = flask.request.form.getlist(f'permissions_{user_id}')
+
+    db.update_user_permissions(user_id, selected_perms)
+    flash("Permissions updated successfully.", "success")
+    return redirect(url_for('user_management'))
 
 def has_permission(permission_name):
     if 'user' not in session:

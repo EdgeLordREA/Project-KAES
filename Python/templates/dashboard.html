@@ -3,7 +3,7 @@
     <h1>Welkom bij KAES, {{ g.username }}</h1>
 
     {% if 'admin' in g.user_permissions %}
-        <a href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a>
+        <a href="{{ url_for('user_management') }}">User Management</a>
     {% endif %}
 
     <a href="{{ url_for('logout') }}">Logout</a>

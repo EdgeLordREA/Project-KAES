@@ -223,3 +223,60 @@ class kaes_database:
                 'id': user['id'],
                 'permissions': permissions_list
             }
+
+    def get_all_users(self):
+        """Fetches all users and their associated permissions."""
+        with self.get_cursor(dictionary=True) as cursor:
+            # Fetch all users
+            cursor.execute("SELECT id, username, create_time FROM users")
+            users = cursor.fetchall()
+
+            # Fetch all permission assignments
+            query = """
+                    SELECT up.user, p.name
+                    FROM userpermissions up
+                             JOIN permissions p ON up.permission = p.id \
+                    """
+            cursor.execute(query)
+            permission_rows = cursor.fetchall()
+
+            # Group permissions by user ID
+            user_perms = {}
+            for row in permission_rows:
+                user_perms.setdefault(row['user'], []).append(row['name'])
+
+            # Combine them
+            for user in users:
+                user['permissions'] = user_perms.get(user['id'], [])
+
+            return users
+
+    def get_all_available_permissions(self):
+        """Fetches all possible permission types from the permissions table."""
+        with self.get_cursor(dictionary=True) as cursor:
+            cursor.execute("SELECT id, name FROM permissions")
+            return cursor.fetchall()
+
+    def delete_user(self, user_id):
+        """Deletes a user and their associated permissions cascadingly."""
+        with self.get_cursor() as cursor:
+            # First clean up the join table for this user
+            cursor.execute("DELETE FROM userpermissions WHERE user = %s", (user_id,))
+            # Delete from users table
+            cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
+            self.connection.commit()
+
+    def update_user_permissions(self, user_id, permission_ids):
+        """Clears existing permissions and assigns a new list of permission IDs."""
+        with self.get_cursor() as cursor:
+            # Remove old permissions
+            cursor.execute("DELETE FROM userpermissions WHERE user = %s", (user_id,))
+
+            # Insert new permissions
+            if permission_ids:
+                insert_query = "INSERT INTO userpermissions (user, permission) VALUES (%s, %s)"
+                # Prepare data tuple list for executemany
+                data = [(user_id, int(perm_id)) for perm_id in permission_ids]
+                cursor.executemany(insert_query, data)
+
+            self.connection.commit()
