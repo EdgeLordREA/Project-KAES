@@ -1,0 +1,10 @@
+{% extends 'template.html' %}
+{% block body %}
+    <h1>Welkom bij KAES, {{ g.username }}</h1>
+
+    {% if 'admin' in g.user_permissions %}
+        <a href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a>
+    {% endif %}
+
+    <a href="{{ url_for('logout') }}">Logout</a>
+{% endblock body %}
