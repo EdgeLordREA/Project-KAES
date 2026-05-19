@@ -152,6 +152,7 @@ def update_permissions(user_id):
     flash("Permissions updated successfully.", "success")
     return redirect(url_for('user_management'))
 
+
 def has_permission(permission_name):
     if 'user' not in session:
         return False
@@ -160,7 +161,7 @@ def has_permission(permission_name):
     if 'admin' in g.user_permissions:
         return True
     return False
-
+app.jinja_env.globals['permission_required'] = has_permission
 
 @app.route('/logout')
 def logout():

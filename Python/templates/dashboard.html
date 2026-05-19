@@ -2,7 +2,7 @@
 {% block body %}
     <h1>Welkom bij KAES, {{ g.username }}</h1>
 
-    {% if 'admin' in g.user_permissions %}
+    {% if permission_required('manage_users') %}
         <a href="{{ url_for('user_management') }}">User Management</a>
     {% endif %}
 
