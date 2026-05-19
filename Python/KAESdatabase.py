@@ -1,16 +1,15 @@
-from sqlite3 import Cursor  # Note: You can likely remove this if you're only using MySQL
-from time import time
+import select
+import socket
+import threading
 
 import bcrypt
 import mysql.connector
 import paramiko
-import socket
-import threading
-import select
 
 import SECRETS
 
 
+# noinspection PyBroadException
 class kaes_database:
 
     # region Boilerplate
@@ -36,7 +35,7 @@ class kaes_database:
 
     def _connect(self):
         try:
-            # 1. Create SSH client and connect
+            # 1. Create an SSH client and connect
             self.ssh_client = paramiko.SSHClient()
             self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             self.ssh_client.connect(
@@ -82,6 +81,8 @@ class kaes_database:
 
     def _forward_tunnel(self):
         """Thread that handles forwarding traffic between local port and remote MySQL."""
+        if not self.server_socket or not self.transport:
+            return
         chan = None
         sock = None
         try:
@@ -158,6 +159,15 @@ class kaes_database:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
+    def commit(self):
+        """
+        Commit any pending transaction to the database.
+        """
+        if not self.connection:
+            raise RuntimeError("Database connection is not established.")
+
+        self.connection.commit()
+
     # endregion
 
     def get_cursor(self, dictionary=False):
@@ -165,6 +175,9 @@ class kaes_database:
         Helper method to quickly grab a cursor.
         Setting dictionary=True returns rows as dicts instead of tuples.
         """
+        if not self.connection:
+            raise RuntimeError("Database connection is not established.")
+
         return self.connection.cursor(dictionary=dictionary)
 
     def login(self, username, password):
@@ -172,7 +185,7 @@ class kaes_database:
         with self.get_cursor(dictionary=True) as cursor:
             query = "SELECT password FROM users WHERE username = %s"
 
-            # Note: Arguments must be passed as a tuple/list: (username,)
+            # Note: Arguments must be passed as a tuple/list: (username,
             cursor.execute(query, (username,))
             user = cursor.fetchone()
 
@@ -190,7 +203,7 @@ class kaes_database:
             hashpass = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
             cursor.execute(query, (username, hashpass))
-            self.connection.commit()
+            self.commit()
 
     def get_user_permissions(self, username):
         """
@@ -216,7 +229,7 @@ class kaes_database:
             cursor.execute(perm_query, (user['id'],))
             rows = cursor.fetchall()
 
-            # Extract permission names into a clean list: ['admin', 'student'] etc.
+            # Extract permission names into a clean list: ['admin', 'student'], etc.
             permissions_list = [row['name'] for row in rows]
 
             return {
@@ -260,11 +273,11 @@ class kaes_database:
     def delete_user(self, user_id):
         """Deletes a user and their associated permissions cascadingly."""
         with self.get_cursor() as cursor:
-            # First clean up the join table for this user
+            # First, clean up the join table for this user
             cursor.execute("DELETE FROM userpermissions WHERE user = %s", (user_id,))
-            # Delete from users table
+            # Delete it from the users table
             cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
-            self.connection.commit()
+            self.commit()
 
     def update_user_permissions(self, user_id, permission_ids):
         """Clears existing permissions and assigns a new list of permission IDs."""
@@ -279,4 +292,4 @@ class kaes_database:
                 data = [(user_id, int(perm_id)) for perm_id in permission_ids]
                 cursor.executemany(insert_query, data)
 
-            self.connection.commit()
+            self.commit()
