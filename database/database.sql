@@ -1,162 +1,177 @@
-CREATE DATABASE  IF NOT EXISTS `nbuch` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
-USE `nbuch`;
--- MySQL dump 10.13  Distrib 8.4.9, for Linux (x86_64)
---
--- Host: localhost    Database: nbuch
--- ------------------------------------------------------
--- Server version	8.0.45-0ubuntu0.24.04.1
+-- MySQL Workbench Forward Engineering
 
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8 */;
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
+SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
+SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 
---
--- Table structure for table `categories`
---
+-- -----------------------------------------------------
+-- Schema nbuch
+-- -----------------------------------------------------
 
-DROP TABLE IF EXISTS `categories`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `categories` (
-  `category_id` int NOT NULL,
-  `name` varchar(255) NOT NULL,
+-- -----------------------------------------------------
+-- Schema nbuch
+-- -----------------------------------------------------
+CREATE SCHEMA IF NOT EXISTS `nbuch` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci ;
+USE `nbuch` ;
+
+-- -----------------------------------------------------
+-- Table `nbuch`.`categories`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `nbuch`.`categories` (
+  `category_id` INT NOT NULL,
+  `name` VARCHAR(255) NOT NULL,
   PRIMARY KEY (`category_id`),
-  UNIQUE KEY `name_UNIQUE` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
+  UNIQUE INDEX `name_UNIQUE` (`name` ASC) VISIBLE)
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_0900_ai_ci;
 
---
--- Table structure for table `endscores`
---
 
-DROP TABLE IF EXISTS `endscores`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `endscores` (
-  `exam` int NOT NULL,
-  `category` int NOT NULL,
-  `endscore` varchar(45) DEFAULT NULL,
-  PRIMARY KEY (`exam`),
-  KEY `category_idx` (`category`),
-  CONSTRAINT `fk_endscores_category` FOREIGN KEY (`category`) REFERENCES `categories` (`category_id`),
-  CONSTRAINT `fk_endscores_exam` FOREIGN KEY (`exam`) REFERENCES `exams` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
+-- -----------------------------------------------------
+-- Table `nbuch`.`permissions`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `nbuch`.`permissions` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`id`))
+ENGINE = InnoDB
+AUTO_INCREMENT = 2
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_0900_ai_ci;
 
---
--- Table structure for table `examquestions`
---
 
-DROP TABLE IF EXISTS `examquestions`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `examquestions` (
-  `exam` int NOT NULL,
-  `question` int NOT NULL,
-  `answer` int DEFAULT NULL,
-  PRIMARY KEY (`exam`),
-  KEY `question_idx` (`question`),
-  CONSTRAINT `fk_examquestions_exam` FOREIGN KEY (`exam`) REFERENCES `exams` (`id`),
-  CONSTRAINT `fk_examquestions_question` FOREIGN KEY (`question`) REFERENCES `questions` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `exams`
---
-
-DROP TABLE IF EXISTS `exams`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `exams` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `user` int NOT NULL,
+-- -----------------------------------------------------
+-- Table `nbuch`.`questions`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `nbuch`.`questions` (
+  `id` INT NOT NULL,
+  `question` VARCHAR(255) NOT NULL,
+  `category` INT NULL DEFAULT NULL,
+  `modifier` INT NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `user_idx` (`user`),
-  CONSTRAINT `fk_exams_user` FOREIGN KEY (`user`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
+  INDEX `category_idx` (`category` ASC) VISIBLE,
+  CONSTRAINT `fk_questions_category`
+    FOREIGN KEY (`category`)
+    REFERENCES `nbuch`.`categories` (`category_id`))
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_0900_ai_ci;
 
---
--- Table structure for table `permissions`
---
 
-DROP TABLE IF EXISTS `permissions`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `permissions` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `questions`
---
-
-DROP TABLE IF EXISTS `questions`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `questions` (
-  `id` int NOT NULL,
-  `question` varchar(255) NOT NULL,
-  `category` int DEFAULT NULL,
-  `modifier` int DEFAULT NULL,
+-- -----------------------------------------------------
+-- Table `nbuch`.`users`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `nbuch`.`users` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `username` VARCHAR(32) NOT NULL,
+  `password` VARCHAR(60) NOT NULL,
+  `create_time` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `category_idx` (`category`),
-  CONSTRAINT `fk_questions_category` FOREIGN KEY (`category`) REFERENCES `categories` (`category_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
+  UNIQUE INDEX `username_UNIQUE` (`username` ASC) VISIBLE)
+ENGINE = InnoDB
+AUTO_INCREMENT = 4
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_0900_ai_ci;
 
---
--- Table structure for table `userpermissions`
---
 
-DROP TABLE IF EXISTS `userpermissions`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `userpermissions` (
-  `user` int NOT NULL,
-  `permission` int NOT NULL,
+-- -----------------------------------------------------
+-- Table `nbuch`.`userpermissions`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `nbuch`.`userpermissions` (
+  `user` INT NOT NULL,
+  `permission` INT NOT NULL,
   PRIMARY KEY (`user`),
-  KEY `permission_idx` (`permission`),
-  CONSTRAINT `fk_userpermissions_permission` FOREIGN KEY (`permission`) REFERENCES `permissions` (`id`),
-  CONSTRAINT `fk_userpermissions_users` FOREIGN KEY (`user`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
+  INDEX `permission_idx` (`permission` ASC) VISIBLE,
+  CONSTRAINT `fk_userpermissions_permission`
+    FOREIGN KEY (`permission`)
+    REFERENCES `nbuch`.`permissions` (`id`),
+  CONSTRAINT `fk_userpermissions_users`
+    FOREIGN KEY (`user`)
+    REFERENCES `nbuch`.`users` (`id`))
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_0900_ai_ci;
 
---
--- Table structure for table `users`
---
 
-DROP TABLE IF EXISTS `users`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `users` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `username` varchar(32) NOT NULL,
-  `password` varchar(60) NOT NULL,
-  `create_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+-- -----------------------------------------------------
+-- Table `nbuch`.`exams`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `nbuch`.`exams` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `title` VARCHAR(45) NULL,
+  PRIMARY KEY (`id`))
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `nbuch`.`examquestions`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `nbuch`.`examquestions` (
+  `examid` INT NOT NULL,
+  `questionid` INT NOT NULL,
+  `order` INT NOT NULL AUTO_INCREMENT,
+  INDEX `fk_examquestions_question_idx` (`questionid` ASC) VISIBLE,
+  CONSTRAINT `fk_examquestions_exam`
+    FOREIGN KEY (`examid`)
+    REFERENCES `nbuch`.`exams` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_examquestions_question`
+    FOREIGN KEY (`questionid`)
+    REFERENCES `nbuch`.`questions` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `nbuch`.`userexams`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `nbuch`.`userexams` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `userid` INT NOT NULL,
+  `examid` INT NOT NULL,
+  `time_finished` TIMESTAMP NULL,
+  `time_started` TIMESTAMP NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `username_UNIQUE` (`username`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+  INDEX `fk_userexams_user_idx` (`userid` ASC) VISIBLE,
+  INDEX `fk_userexams_exam_idx` (`examid` ASC) VISIBLE,
+  CONSTRAINT `fk_userexams_user`
+    FOREIGN KEY (`userid`)
+    REFERENCES `nbuch`.`users` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_userexams_exam`
+    FOREIGN KEY (`examid`)
+    REFERENCES `nbuch`.`exams` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
 
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-05-18 13:00:11
+-- -----------------------------------------------------
+-- Table `nbuch`.`examanswers`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `nbuch`.`examanswers` (
+  `userexamid` INT NOT NULL,
+  `questionid` INT NOT NULL,
+  `answer` INT NOT NULL,
+  INDEX `fk_examanswers_exam_idx` (`userexamid` ASC) VISIBLE,
+  INDEX `fk_examanswers_question_idx` (`questionid` ASC) VISIBLE,
+  PRIMARY KEY (`userexamid`, `questionid`),
+  CONSTRAINT `fk_examanswers_exam`
+    FOREIGN KEY (`userexamid`)
+    REFERENCES `nbuch`.`userexams` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_examanswers_question`
+    FOREIGN KEY (`questionid`)
+    REFERENCES `nbuch`.`questions` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+SET SQL_MODE=@OLD_SQL_MODE;
+SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
+SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
