@@ -78,4 +78,8 @@ def load_user_permissions():
 
 
 # Make has_permission available in templates
+# pyrefly: ignore [unsupported-operation]
 app.jinja_env.globals['has_permission'] = has_permission
+
+if __name__ == '__main__':
+    app.run(debug=True)
