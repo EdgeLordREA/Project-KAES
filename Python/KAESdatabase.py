@@ -1,295 +1,330 @@
 import select
 import socket
 import threading
-
-import bcrypt
+from mysql.connector import pooling
 import mysql.connector
+import bcrypt
 import paramiko
 
 import SECRETS
 
+# Global references for our single application-level tunnel pipeline and connection pool
+_global_transport = None
+_local_tunnel_port = None
+_connection_pool = None
+
+
+def _ssh_forwarding_loop(local_socket, ssh_transport, remote_host, remote_port):
+    """
+    Listens on the local socket. Every time a connection request arrives from the pool,
+    it opens a completely separate, concurrent SSH channel over the global transport.
+    """
+    while True:
+        try:
+            client_sock, addr = local_socket.accept()
+        except Exception:
+            break  # Local socket closed or shutting down, exit cleanly
+
+        try:
+            # Open a completely distinct channel through the existing SSH session
+            chan = ssh_transport.open_channel(
+                "direct-tcpip", (remote_host, remote_port), client_sock.getpeername()
+            )
+            if chan is None:
+                client_sock.close()
+                continue
+        except Exception:
+            client_sock.close()
+            continue
+
+        # Dedicated bi-directional data forwarding handler for this specific connection channel
+        def forward_data(src, dest):
+            try:
+                while True:
+                    # Monitor readability natively
+                    readable_sockets, _, _ = select.select([src, dest], [], [])
+                    if src in readable_sockets:
+                        data = src.recv(4096)
+                        if not data:
+                            break
+                        dest.sendall(data)
+                    if dest in readable_sockets:
+                        data = dest.recv(4096)
+                        if not data:
+                            break
+                        src.sendall(data)
+            except Exception:
+                pass
+            finally:
+                try:
+                    src.close()
+                except Exception:
+                    pass
+                try:
+                    dest.close()
+                except Exception:
+                    pass
+
+        threading.Thread(target=forward_data, args=(client_sock, chan), daemon=True).start()
+
+
+def initialize_global_tunnel():
+    """Initializes the native Paramiko transport loop and a MySQL connection pool exactly once."""
+    global _global_transport, _local_tunnel_port, _connection_pool
+    if _connection_pool is not None:
+        return
+
+    try:
+        # 1. Connect to SSH Server using up-to-date Paramiko defaults (bypassing outdated DSS/sshtunnel modules)
+        ssh_client = paramiko.SSHClient()
+        ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+        ssh_client.connect(
+            hostname=SECRETS.SSH_HOST,
+            port=22,
+            username=SECRETS.SSH_USER,
+            password=SECRETS.SSH_PASSWORD
+        )
+
+        # Capture and maintain the transport object globally
+        _global_transport = ssh_client.get_transport()
+        # pyrefly: ignore [missing-attribute]
+        _global_transport.set_keepalive(30)  # Prevent firewalls from dropping the idle connection
+
+        # 2. Bind to a dynamic free local port
+        local_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        local_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        local_socket.bind(('127.0.0.1', 0))
+        _local_tunnel_port = local_socket.getsockname()[1]
+        local_socket.listen(50)
+
+        # 3. Start the non-blocking port forwarder background daemon thread
+        forwarding_thread = threading.Thread(
+            target=_ssh_forwarding_loop,
+            args=(local_socket, _global_transport, SECRETS.SB_HOST, SECRETS.DB_PORT),
+            daemon=True
+        )
+        forwarding_thread.start()
+
+        # 4. Initialize a thread-safe MySQL Connection Pool targeting our dynamic local port
+        _connection_pool = mysql.connector.pooling.MySQLConnectionPool(
+            pool_name="kaes_pool",
+            pool_size=10,  # Allows up to 10 isolated DB worker threads to run simultaneously
+            host='127.0.0.1',
+            port=_local_tunnel_port,
+            user=SECRETS.DB_USERNAME,
+            password=SECRETS.DB_PASSWORD,
+            database="nbuch"
+        )
+        print(f"Native SSH Tunnel established on local port {_local_tunnel_port}. Connection pool active.")
+    except Exception as error:
+        print(f"Critical error initializing global tunnel pipeline: {error}")
+        raise
+
 
 # noinspection PyBroadException
-class kaes_database:
-
-    # region Boilerplate
+class KaesDatabase:
     def __init__(self):
-        # SSH Settings
-        self.ssh_host = SECRETS.SSH_HOST
-        self.ssh_user = SECRETS.SSH_USER
-        self.ssh_password = SECRETS.SSH_PASSWORD
+        if _connection_pool is None:
+            raise RuntimeError("Database pool has not been initialized. Call initialize_global_tunnel() first.")
+        # Seamlessly grab a completely clean, thread-isolated connection from the pool
+        self.connection = _connection_pool.get_connection()
 
-        # MySQL Settings
-        self.db_host = SECRETS.SB_HOST
-        self.db_user = SECRETS.DB_USERNAME
-        self.db_password = SECRETS.DB_PASSWORD
-        self.db_port = SECRETS.DB_PORT
+    def get_cursor(self, dictionary: bool = False):
+        """
+        Helper method to quickly grab a cursor.
+        Setting dictionary=True returns rows as dicts instead of tuples.
+        """
+        if not self.connection or not self.connection.is_connected():
+            raise RuntimeError("Database connection is not established or lost.")
+        return self.connection.cursor(dictionary=dictionary)
 
-        self.ssh_client = None
-        self.transport = None
-        self.local_bind_port = None
-        self.server_socket = None
-        self.forwarding_thread = None
-        self.connection = None
-        self._connect()
+    def commit(self):
+        """Commit any pending transaction to the database."""
+        if not self.connection:
+            raise RuntimeError("Database connection is not established.")
+        self.connection.commit()
 
-    def _connect(self):
+    def close_connection(self):
+        """Returns the MySQL connection cleanly back into the global pool without destroying the tunnel."""
         try:
-            # 1. Create an SSH client and connect
-            self.ssh_client = paramiko.SSHClient()
-            self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            self.ssh_client.connect(
-                hostname=self.ssh_host,
-                port=22,
-                username=self.ssh_user,
-                password=self.ssh_password
-            )
-
-            # 2. Open a transport and start a local port forward
-            self.transport = self.ssh_client.get_transport()
-
-            # Find an available local port
-            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.server_socket.bind(('127.0.0.1', 0))
-            self.server_socket.listen(5)
-            self.local_bind_port = self.server_socket.getsockname()[1]
-
-            # Start the forwarding thread
-            self.forwarding_thread = threading.Thread(
-                target=self._forward_tunnel,
-                daemon=True
-            )
-            self.forwarding_thread.start()
-
-            # 3. Connect to MySQL via the local forwarded port
-            self.connection = mysql.connector.connect(
-                host='127.0.0.1',
-                port=self.local_bind_port,
-                user=self.db_user,
-                password=self.db_password,
-                database='nbuch'
-            )
-
-            if self.connection.is_connected():
-                print(f"Successfully connected to Database via SSH tunnel on local port {self.local_bind_port}")
-
+            if self.connection and self.connection.is_connected():
+                self.connection.close()  # When pooled, .close() releases it back to the pool
+                # pyrefly: ignore [bad-assignment]
+                self.connection = None
+                print("MySQL connection closed gracefully.")
         except Exception as e:
-            print(f"Error connecting: {e}")
-            self.close()
-            raise
-
-    def _forward_tunnel(self):
-        """Thread that handles forwarding traffic between local port and remote MySQL."""
-        if not self.server_socket or not self.transport:
-            return
-        chan = None
-        sock = None
-        try:
-            while True:
-                # Accept local connections
-                sock, addr = self.server_socket.accept()
-
-                # Open a channel to the remote MySQL host
-                chan = self.transport.open_channel(
-                    'direct-tcpip',
-                    (self.db_host, self.db_port),
-                    addr
-                )
-
-                if chan is None:
-                    sock.close()
-                    continue
-
-                # Bidirectional forwarding
-                while True:
-                    r, w, x = select.select([sock, chan], [], [])
-                    if sock in r:
-                        data = sock.recv(1024)
-                        if len(data) == 0:
-                            break
-                        chan.send(data)
-                    if chan in r:
-                        data = chan.recv(1024)
-                        if len(data) == 0:
-                            break
-                        sock.send(data)
-
-                chan.close()
-                sock.close()
-
-        except Exception:
-            pass
-        finally:
-            if chan:
-                chan.close()
-            if sock:
-                sock.close()
-
-    def close(self):
-        """Close the connection and stop the tunnel."""
-        if self.connection and self.connection.is_connected():
-            self.connection.close()
-            print("MySQL connection closed")
-
-        if self.server_socket:
-            try:
-                self.server_socket.close()
-            except Exception:
-                pass
-            print("Local tunnel socket closed")
-
-        if self.transport:
-            try:
-                self.transport.close()
-            except Exception:
-                pass
-            print("SSH transport closed")
-
-        if self.ssh_client:
-            try:
-                self.ssh_client.close()
-            except Exception:
-                pass
-            print("SSH client closed")
+            print(f"Error closing MySQL connection: {e}")
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
+        self.close_connection()
 
-    def commit(self):
-        """
-        Commit any pending transaction to the database.
-        """
-        if not self.connection:
-            raise RuntimeError("Database connection is not established.")
+    # --- SQL Business Methods ---
 
-        self.connection.commit()
+    def login(self, username: str, password: str) -> bool:
+        cursor = self.get_cursor(dictionary=True)
+        cursor.execute("SELECT password FROM users WHERE username = %s", (username,))
+        user = cursor.fetchone()
 
-    # endregion
+        if not user:
+            return False
 
-    def get_cursor(self, dictionary=False):
-        """
-        Helper method to quickly grab a cursor.
-        Setting dictionary=True returns rows as dicts instead of tuples.
-        """
-        if not self.connection:
-            raise RuntimeError("Database connection is not established.")
+        return self._check_password(password, user["password"])
 
-        return self.connection.cursor(dictionary=dictionary)
+    def add_user(self, username: str, password: str):
+        cursor = self.get_cursor()
+        password_hash = self._hash_password(password)
 
-    def login(self, username, password):
-        # 1. Use context manager ('with') so the cursor auto-closes when done
-        with self.get_cursor(dictionary=True) as cursor:
-            query = "SELECT password FROM users WHERE username = %s"
+        cursor.execute(
+            "INSERT INTO users (username, password) VALUES (%s, %s)",
+            (username, password_hash),
+        )
+        self.commit()
 
-            # Note: Arguments must be passed as a tuple/list: (username,
-            cursor.execute(query, (username,))
-            user = cursor.fetchone()
+    def _hash_password(self, password: str) -> str:
+        """Hash a plaintext password for storage."""
+        return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
-            # If user doesn't exist
-            if not user:
-                return False
+    def _check_password(self, password: str, password_hash: str) -> bool:
+        """Check whether a plaintext password matches a stored bcrypt hash."""
+        return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
 
-            return bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8'))
+    def _resolve_child_permissions(self, direct_permission_names: list) -> list:
+        """Helper to recursively find all child permissions implied by holding a parent permission."""
+        all_perms = self.get_all_permissions()  # list of dicts with id, name, parent_id
 
-    def add_user(self, username, password):
-        with self.get_cursor() as cursor:
-            query = "INSERT INTO users (username, password) VALUES (%s, %s)"
+        # Maps parent_id -> list of child dicts
+        hierarchy_map = {}
+        # Maps name -> id
+        name_to_id = {}
+        for p in all_perms:
+            name_to_id[p['name']] = p['id']
+            if p['parent_id'] is not None:
+                hierarchy_map.setdefault(p['parent_id'], []).append(p)
 
-            # Generate hash and decode to string so it stores nicely in a VARCHAR field
-            hashpass = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        resolved_names = set(direct_permission_names)
+        # Queue seeds from what the user explicitly holds
+        queue = [name_to_id[name] for name in direct_permission_names if name in name_to_id]
 
-            cursor.execute(query, (username, hashpass))
-            self.commit()
+        # BFS traversal down the tree
+        while queue:
+            current_parent_id = queue.pop(0)
+            if current_parent_id in hierarchy_map:
+                for child in hierarchy_map[current_parent_id]:
+                    if child['name'] not in resolved_names:
+                        resolved_names.add(child['name'])
+                        queue.append(child['id'])
 
-    def get_user_permissions(self, username):
-        """
-        Fetches the user's ID and an array of their assigned permission names
-        matching the 'users', 'userpermissions', and 'permissions' schema.
-        """
-        with self.get_cursor(dictionary=True) as cursor:
-            # First, verify the user exists and grab their ID
-            user_query = "SELECT id FROM users WHERE username = %s"
-            cursor.execute(user_query, (username,))
-            user = cursor.fetchone()
+        return list(resolved_names)
 
-            if not user:
-                return None  # User doesn't exist or was deleted
+    def get_user_permissions(self, username: str):
+        cursor = self.get_cursor(dictionary=True)
+        cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+        user = cursor.fetchone()
 
-            # Next, grab all permission strings linked to this user's ID
-            perm_query = """
-                SELECT p.name 
-                FROM userpermissions up
-                JOIN permissions p ON up.permission = p.id
-                WHERE up.user = %s
+        if not user:
+            return None
+
+        cursor.execute(
             """
-            cursor.execute(perm_query, (user['id'],))
-            rows = cursor.fetchall()
+            SELECT p.name
+            FROM userpermissions up
+                     JOIN permissions p ON up.permission = p.id
+            WHERE up.user = %s
+            """,
+            (user["id"],),
+        )
+        direct_permissions = [row["name"] for row in cursor.fetchall()]
 
-            # Extract permission names into a clean list: ['admin', 'student'], etc.
-            permissions_list = [row['name'] for row in rows]
+        # Dynamically compute inherited child permissions
+        full_permissions = self._resolve_child_permissions(direct_permissions)
 
-            return {
-                'id': user['id'],
-                'permissions': permissions_list
-            }
+        return {
+            "id": user["id"],
+            "permissions": full_permissions,
+        }
 
     def get_all_users(self):
         """Fetches all users and their associated permissions."""
-        with self.get_cursor(dictionary=True) as cursor:
-            # Fetch all users
-            cursor.execute("SELECT id, username, create_time FROM users")
-            users = cursor.fetchall()
+        cursor = self.get_cursor(dictionary=True)
 
-            # Fetch all permission assignments
-            query = """
-                    SELECT up.user, p.name
-                    FROM userpermissions up
-                             JOIN permissions p ON up.permission = p.id \
-                    """
-            cursor.execute(query)
-            permission_rows = cursor.fetchall()
+        cursor.execute("SELECT id, username, create_time FROM users")
+        users = cursor.fetchall()
 
-            # Group permissions by user ID
-            user_perms = {}
-            for row in permission_rows:
-                user_perms.setdefault(row['user'], []).append(row['name'])
+        cursor.execute(
+            """
+            SELECT up.user, p.name
+            FROM userpermissions up
+                     JOIN permissions p ON up.permission = p.id
+            """
+        )
+        permission_rows = cursor.fetchall()
 
-            # Combine them
-            for user in users:
-                user['permissions'] = user_perms.get(user['id'], [])
+        permissions_by_user = {}
+        for row in permission_rows:
+            permissions_by_user.setdefault(row["user"], []).append(row["name"])
 
-            return users
+        for user in users:
+            user["permissions"] = permissions_by_user.get(user["id"], [])
+
+        return users
+
+    def delete_user(self, user_id: int):
+        """Deletes a user and their associated permissions cascadingly."""
+        cursor = self.get_cursor()
+        cursor.execute("DELETE FROM userpermissions WHERE user = %s", (user_id,))
+        cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
+        self.commit()
+
+    def get_all_permissions(self):
+        """Fetches all permissions, including their parent_id relation."""
+        cursor = self.get_cursor(dictionary=True)
+        cursor.execute("SELECT id, name, parent_id FROM permissions")
+        return cursor.fetchall()
 
     def get_all_available_permissions(self):
-        """Fetches all possible permission types from the permissions table."""
-        with self.get_cursor(dictionary=True) as cursor:
-            cursor.execute("SELECT id, name FROM permissions")
-            return cursor.fetchall()
+        """Alias or updated query for available permissions."""
+        return self.get_all_permissions()
 
-    def delete_user(self, user_id):
-        """Deletes a user and their associated permissions cascadingly."""
-        with self.get_cursor() as cursor:
-            # First, clean up the join table for this user
-            cursor.execute("DELETE FROM userpermissions WHERE user = %s", (user_id,))
-            # Delete it from the users table
-            cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
-            self.commit()
-
-    def update_user_permissions(self, user_id, permission_ids):
+    def update_user_permissions(self, user_id: int, permission_ids):
         """Clears existing permissions and assigns a new list of permission IDs."""
-        with self.get_cursor() as cursor:
-            # Remove old permissions
-            cursor.execute("DELETE FROM userpermissions WHERE user = %s", (user_id,))
+        cursor = self.get_cursor()
+        cursor.execute("DELETE FROM userpermissions WHERE user = %s", (user_id,))
 
-            # Insert new permissions
-            if permission_ids:
-                insert_query = "INSERT INTO userpermissions (user, permission) VALUES (%s, %s)"
-                # Prepare data tuple list for executemany
-                data = [(user_id, int(perm_id)) for perm_id in permission_ids]
-                cursor.executemany(insert_query, data)
+        if permission_ids:
+            insert_query = "INSERT INTO userpermissions (user, permission) VALUES (%s, %s)"
+            permission_values = [(user_id, int(permission_id)) for permission_id in permission_ids]
+            cursor.executemany(insert_query, permission_values)
 
-            self.commit()
+        self.commit()
+
+    def create_permission(self, permission_name: str, parent_id: int | None = None) -> bool:
+        cursor = self.get_cursor()
+        cursor.execute(
+            "INSERT INTO permissions (name, parent_id) VALUES (%s, %s)",
+            (permission_name, parent_id if parent_id else None),
+        )
+        self.commit()
+        return cursor.rowcount > 0
+
+    def delete_permission(self, permission_id: int) -> bool:
+        cursor = self.get_cursor()
+        cursor.execute("DELETE FROM permissions WHERE id = %s", (permission_id,))
+        self.commit()
+        return cursor.rowcount > 0
+
+    def update_permission_hierarchy(self, permission_id: int, parent_id: int | None = None):
+        """Updates the parent relationship of an existing permission."""
+        cursor = self.get_cursor()
+        cursor.execute(
+            "UPDATE permissions SET parent_id = %s WHERE id = %s",
+            (parent_id if parent_id else None, permission_id)
+        )
+        self.commit()
+
+
+# Maintain alias consistency mapping back to the lower-case export wrapper found in app.py
+kaes_database = KaesDatabase
