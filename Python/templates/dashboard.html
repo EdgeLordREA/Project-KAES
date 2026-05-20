@@ -5,6 +5,8 @@
     {% if permission_required('manage_users') %}
         <a href="{{ url_for('user_management') }}">User Management</a>
     {% endif %}
-
+    {% if permission_required('admin') %}
+    <a href="{{ url_for('permission_management') }}">Permission Management</a>
+    {% endif %}
     <a href="{{ url_for('logout') }}">Logout</a>
 {% endblock body %}

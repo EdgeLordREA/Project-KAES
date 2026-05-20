@@ -1,4 +1,140 @@
 {% extends 'template.html' %}
 {% block body %}
+    <h1>Hierarchical Permission Management</h1>
+    <p><a href="{{ url_for('dashboard') }}">← Back to Dashboard</a></p>
 
+    <hr>
+
+    <h2>Create New Permission</h2>
+    <form method="POST" action="{{ url_for('permission_management') }}">
+        {{ form.hidden_tag() }}
+        <div>
+            {{ form.permission_name.label }} <br>
+            {{ form.permission_name() }}
+        </div>
+        <br>
+        <div>
+            <label for="parent_id">Inherits From Parent Permission (Optional):</label><br>
+            <select name="parent_id" id="parent_id">
+                <option value="None">-- No Parent (Top Level) --</option>
+                {% for permission in permissions %}
+                    <option value="{{ permission.id }}">{{ permission.name }}</option>
+                {% endfor %}
+            </select>
+            <p><small style="color: gray;">If you select a parent, anyone possessing that parent permission automatically gets this new one.</small></p>
+        </div>
+        {{ form.submit() }}
+    </form>
+
+    <hr>
+
+    <h2>Existing Structural Hierarchy</h2>
+
+    {# Define a recursive Jinja macro to map out the tree structure naturally #}
+    {% macro render_tree(nodes, all_perms) %}
+        <ul class="perm-tree-branch">
+            {% for node in nodes %}
+                <li class="perm-tree-node">
+                    <div class="perm-node-card">
+                        <span class="perm-name">🔑 <strong>{{ node.name }}</strong> (ID: {{ node.id }})</span>
+
+                        <div class="perm-actions">
+                            <form method="POST" action="{{ url_for('permission_management') }}" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="permission_id" value="{{ node.id }}">
+                                <input type="hidden" name="update_hierarchy" value="1">
+
+                                <select name="parent_id" onchange="this.form.submit()" style="font-size: 0.85em;">
+                                    <option value="None">-- Move to Top Level --</option>
+                                    {% for parent_opt in all_perms %}
+                                        {% if parent_opt.id != node.id %}
+                                            <option value="{{ parent_opt.id }}" {% if node.parent_id == parent_opt.id %}selected{% endif %}>
+                                                Parent: {{ parent_opt.name }}
+                                            </option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </form>
+
+                            <form method="POST" action="{{ url_for('permission_management') }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this permission? Child paths will be orphaned safely.');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" name="delete" value="{{ node.id }}" style="color: red; background: none; border: none; cursor: pointer; font-weight: bold;">✕ Delete</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    {# Filter out the children of this node #}
+                    {% set children = all_perms | selectattr('parent_id', 'equalto', node.id) | list %}
+                    {% if children %}
+                        {{ render_tree(children, all_perms) }}
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endmacro %}
+
+    <div class="tree-container">
+        {# Separate top-level permissions (None or blank parents) #}
+        {% set top_level_nodes = permissions | selectattr('parent_id', 'none') | list %}
+
+        {% if top_level_nodes %}
+            {{ render_tree(top_level_nodes, permissions) }}
+        {% else %}
+            <p style="color: gray; font-style: italic;">No permissions found. Create one above!</p>
+        {% endif %}
+    </div>
+
+    <style>
+        .tree-container {
+            background: #fdfdfd;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 20px;
+            max-width: 90%;
+            margin-top: 20px;
+        }
+        ul.perm-tree-branch {
+            list-style-type: none;
+            padding-left: 30px;
+            position: relative;
+        }
+        ul.perm-tree-branch::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 10px;
+            bottom: 0;
+            width: 2px;
+            background: #e0e0e0;
+        }
+        li.perm-tree-node {
+            margin: 10px 0;
+            position: relative;
+        }
+        li.perm-tree-node::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: -20px;
+            width: 20px;
+            height: 2px;
+            background: #e0e0e0;
+        }
+        .perm-node-card {
+            display: inline-flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #ffffff;
+            border: 1px solid #dcdcdc;
+            padding: 8px 15px;
+            border-radius: 4px;
+            min-width: 450px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .perm-actions {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+    </style>
 {% endblock body %}

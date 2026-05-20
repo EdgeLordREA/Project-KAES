@@ -25,43 +25,54 @@
     <h2>Existing Users</h2>
     <table border="1" cellpadding="8" style="border-collapse: collapse; width: 100%; text-align: left;">
         <thead>
-            <tr>
-                <th>ID</th>
-                <th>Username</th>
-                <th>Created At</th>
-                <th>Permissions</th>
-                <th>Actions</th>
-            </tr>
+        <tr>
+            <th>ID</th>
+            <th>Username</th>
+            <th>Created At</th>
+            <th>Permissions (Inherited checked options automatically lock)</th>
+            <th>Actions</th>
+        </tr>
         </thead>
         <tbody>
-            {% for user in users %}
+        {% for user in users %}
             <tr>
                 <td>{{ user.id }}</td>
                 <td><strong>{{ user.username }}</strong></td>
                 <td>{{ user.create_time }}</td>
                 <td>
-                    <form method="POST" action="{{ url_for('update_permissions', user_id=user.id) }}" style="display:inline;">
+                    <form method="POST" action="{{ url_for('update_permissions', user_id=user.id) }}"
+                          style="display:inline;" class="user-perm-form">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                         {% for perm in available_permissions %}
-                            <label style="margin-right: 10px;">
+                            <label style="margin-right: 15px; display: inline-block; padding: 4px; border-radius: 3px;"
+                                   class="perm-label">
                                 <input type="checkbox"
                                        name="permissions_{{ user.id }}"
                                        value="{{ perm.id }}"
+                                       data-id="{{ perm.id }}"
+                                       data-parent-id="{{ perm.parent_id if perm.parent_id else 'None' }}"
                                        {% if perm.name in user.permissions %}checked{% endif %}
-                                {% if user.username == g.username %}disabled{% endif %}
+
+                                        {# DISABLE IF: #}
+                                       {% if
+                   user.username == g.username or
+                   ('admin' in user.permissions and 'admin' not in g.user_permissions) or
+                   (perm.name not in g.user_permissions) %}disabled{% endif %}
                                 >
-                                {{ perm.name }}
+                                <span class="perm-text">{{ perm.name }}</span>
                             </label>
                         {% endfor %}
                         {% if user.username != g.username %}
-                        <button type="submit" style="margin-left: 10px;" >Save Perms</button>
-                    {% endif %}
+                            <button type="submit" style="margin-left: 10px;">Save Perms</button>
+                        {% endif %}
                     </form>
                 </td>
                 <td>
                     {% if user.id != g.user_id %}
-                        <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" onsubmit="return confirm('Are you sure you want to delete user: {{ user.username }}?');" style="display:inline;">
+                        <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}"
+                              onsubmit="return confirm('Are you sure you want to delete user: {{ user.username }}?');"
+                              style="display:inline;">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" style="color: red;">Delete</button>
                         </form>
@@ -70,7 +81,83 @@
                     {% endif %}
                 </td>
             </tr>
-            {% endfor %}
+        {% endfor %}
         </tbody>
     </table>
+
+    <style>
+        .inherited-checked {
+            background-color: #e6f7ff;
+            border: 1px dashed #1890ff;
+            color: #0050b3;
+        }
+
+        .inherited-checked .perm-text::after {
+            content: " (inherited)";
+            font-size: 0.75em;
+            font-style: italic;
+            color: #40a9ff;
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const forms = document.querySelectorAll('.user-perm-form');
+
+            forms.forEach(form => {
+                const checkboxes = form.querySelectorAll('input[type="checkbox"]');
+
+                function updateInheritance() {
+                    // Reset temporary tracking assignments
+                    checkboxes.forEach(cb => {
+                        if (cb.hasAttribute('data-inherited')) {
+                            cb.checked = false;
+                            cb.disabled = false;
+                            cb.removeAttribute('data-inherited');
+                        }
+                        cb.closest('.perm-label').classList.remove('inherited-checked');
+                    });
+
+                    // Build graph map of current checked nodes
+                    let checkedIds = new Set();
+                    checkboxes.forEach(cb => {
+                        if (cb.checked) {
+                            checkedIds.add(cb.getAttribute('data-id'));
+                        }
+                    });
+
+                    // Propagate down through tree depth limits sequentially
+                    let changesMade = true;
+                    while (changesMade) {
+                        changesMade = false;
+                        checkboxes.forEach(cb => {
+                            const parentId = cb.getAttribute('data-parent-id');
+                            const currentId = cb.getAttribute('data-id');
+
+                            // FIX: If the parent is checked, this child MUST be inherited and disabled,
+                            // regardless of whether it was already checked in the HTML markup.
+                            if (parentId !== 'None' && checkedIds.has(parentId)) {
+                                if (!cb.hasAttribute('data-inherited')) {
+                                    checkedIds.add(currentId);
+                                    cb.checked = true;
+                                    cb.disabled = true;
+                                    cb.setAttribute('data-inherited', 'true');
+                                    cb.closest('.perm-label').classList.add('inherited-checked');
+                                    changesMade = true;
+                                }
+                            }
+                        });
+                    }
+                }
+
+                // Attach dynamically to reactive inputs
+                checkboxes.forEach(cb => {
+                    cb.addEventListener('change', updateInheritance);
+                });
+
+                // Run validation on page draw setup
+                updateInheritance();
+            });
+        });
+    </script>
 {% endblock body %}
