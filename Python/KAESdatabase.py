@@ -8,6 +8,7 @@ import paramiko
 
 import SECRETS
 
+#region pooling
 # Global references for our single application-level tunnel pipeline and connection pool
 _global_transport = None
 _local_tunnel_port = None
@@ -120,10 +121,11 @@ def initialize_global_tunnel():
     except Exception as error:
         print(f"Critical error initializing global tunnel pipeline: {error}")
         raise
-
+#endregion
 
 # noinspection PyBroadException
 class KaesDatabase:
+    #region boilerplate
     def __init__(self):
         if _connection_pool is None:
             raise RuntimeError("Database pool has not been initialized. Call initialize_global_tunnel() first.")
@@ -161,9 +163,9 @@ class KaesDatabase:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close_connection()
+#endregion
 
-    # --- SQL Business Methods ---
-
+    # region authentication
     def login(self, username: str, password: str) -> bool:
         cursor = self.get_cursor(dictionary=True)
         cursor.execute("SELECT password FROM users WHERE username = %s", (username,))
@@ -174,6 +176,17 @@ class KaesDatabase:
 
         return self._check_password(password, user["password"])
 
+    def _hash_password(self, password: str) -> str:
+        """Hash a plaintext password for storage."""
+        return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+    def _check_password(self, password: str, password_hash: str) -> bool:
+        """Check whether a plaintext password matches a stored bcrypt hash."""
+        return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+
+    # endregion
+
+    # region users
     def add_user(self, username: str, password: str):
         cursor = self.get_cursor()
         password_hash = self._hash_password(password)
@@ -183,69 +196,6 @@ class KaesDatabase:
             (username, password_hash),
         )
         self.commit()
-
-    def _hash_password(self, password: str) -> str:
-        """Hash a plaintext password for storage."""
-        return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-
-    def _check_password(self, password: str, password_hash: str) -> bool:
-        """Check whether a plaintext password matches a stored bcrypt hash."""
-        return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
-
-    def _resolve_child_permissions(self, direct_permission_names: list) -> list:
-        """Helper to recursively find all child permissions implied by holding a parent permission."""
-        all_perms = self.get_all_permissions()  # list of dicts with id, name, parent_id
-
-        # Maps parent_id -> list of child dicts
-        hierarchy_map = {}
-        # Maps name -> id
-        name_to_id = {}
-        for p in all_perms:
-            name_to_id[p['name']] = p['id']
-            if p['parent_id'] is not None:
-                hierarchy_map.setdefault(p['parent_id'], []).append(p)
-
-        resolved_names = set(direct_permission_names)
-        # Queue seeds from what the user explicitly holds
-        queue = [name_to_id[name] for name in direct_permission_names if name in name_to_id]
-
-        # BFS traversal down the tree
-        while queue:
-            current_parent_id = queue.pop(0)
-            if current_parent_id in hierarchy_map:
-                for child in hierarchy_map[current_parent_id]:
-                    if child['name'] not in resolved_names:
-                        resolved_names.add(child['name'])
-                        queue.append(child['id'])
-
-        return list(resolved_names)
-
-    def get_user_permissions(self, username: str):
-        cursor = self.get_cursor(dictionary=True)
-        cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
-        user = cursor.fetchone()
-
-        if not user:
-            return None
-
-        cursor.execute(
-            """
-            SELECT p.name
-            FROM userpermissions up
-                     JOIN permissions p ON up.permission = p.id
-            WHERE up.user = %s
-            """,
-            (user["id"],),
-        )
-        direct_permissions = [row["name"] for row in cursor.fetchall()]
-
-        # Dynamically compute inherited child permissions
-        full_permissions = self._resolve_child_permissions(direct_permissions)
-
-        return {
-            "id": user["id"],
-            "permissions": full_permissions,
-        }
 
     def get_all_users(self):
         """Fetches all users and their associated permissions."""
@@ -278,6 +228,37 @@ class KaesDatabase:
         cursor.execute("DELETE FROM userpermissions WHERE user = %s", (user_id,))
         cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
         self.commit()
+
+    # endregion
+
+    # region permissions
+    def _resolve_child_permissions(self, direct_permission_names: list) -> list:
+        """Helper to recursively find all child permissions implied by holding a parent permission."""
+        all_perms = self.get_all_permissions()  # list of dicts with id, name, parent_id
+
+        # Maps parent_id -> list of child dicts
+        hierarchy_map = {}
+        # Maps name -> id
+        name_to_id = {}
+        for p in all_perms:
+            name_to_id[p['name']] = p['id']
+            if p['parent_id'] is not None:
+                hierarchy_map.setdefault(p['parent_id'], []).append(p)
+
+        resolved_names = set(direct_permission_names)
+        # Queue seeds from what the user explicitly holds
+        queue = [name_to_id[name] for name in direct_permission_names if name in name_to_id]
+
+        # BFS traversal down the tree
+        while queue:
+            current_parent_id = queue.pop(0)
+            if current_parent_id in hierarchy_map:
+                for child in hierarchy_map[current_parent_id]:
+                    if child['name'] not in resolved_names:
+                        resolved_names.add(child['name'])
+                        queue.append(child['id'])
+
+        return list(resolved_names)
 
     def get_all_permissions(self):
         """Fetches all permissions, including their parent_id relation."""
@@ -324,6 +305,40 @@ class KaesDatabase:
             (parent_id if parent_id else None, permission_id)
         )
         self.commit()
+
+    def get_user_permissions(self, username: str):
+        cursor = self.get_cursor(dictionary=True)
+        cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+        user = cursor.fetchone()
+
+        if not user:
+            return None
+
+        cursor.execute(
+            """
+            SELECT p.name
+            FROM userpermissions up
+                     JOIN permissions p ON up.permission = p.id
+            WHERE up.user = %s
+            """,
+            (user["id"],),
+        )
+        direct_permissions = [row["name"] for row in cursor.fetchall()]
+
+        # Dynamically compute inherited child permissions
+        full_permissions = self._resolve_child_permissions(direct_permissions)
+
+        return {
+            "id": user["id"],
+            "permissions": full_permissions,
+        }
+    # endregion
+    #region Exams
+    def get_all_exams(self):
+        cursor = self.get_cursor(dictionary=True)
+        cursor.execute("SELECT id, name, date, time, location, duration, capacity, status FROM exams")
+        return cursor.fetchall()
+    #endregion
 
 
 # Maintain alias consistency mapping back to the lower-case export wrapper found in app.py

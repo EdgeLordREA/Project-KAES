@@ -328,3 +328,248 @@ body:has(h1:contains("Welkom bij KAES")) a[href*="logout"]:hover {
 p:has(a[href*="dashboard"]) {
     margin-bottom: 12px;
 }
+
+:root {
+    --bg-primary: #f8fafc;
+    --bg-card: #ffffff;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --color-primary: #3b82f6;
+    --color-primary-hover: #2563eb;
+    --color-danger: #ef4444;
+    --color-danger-hover: #dc2626;
+    --border-color: #e2e8f0;
+    --radius: 8px;
+    --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-main);
+    margin: 0;
+    padding: 2rem;
+}
+
+.app-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 1rem;
+}
+
+h1, h2 {
+    margin: 0;
+    color: var(--text-main);
+}
+
+h1 { font-size: 1.85rem; }
+h2 { font-size: 1.25rem; margin-bottom: 1.25rem; }
+
+/* Grid Layouts */
+.management-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 2rem;
+}
+
+@media (max-width: 900px) {
+    .management-grid { grid-template-columns: 1fr; }
+}
+
+/* Cards & Containers */
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    box-shadow: var(--shadow);
+}
+
+/* Form Styling */
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.form-control {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.95rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: #fff;
+    color: var(--text-main);
+    transition: border-color 0.15s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.form-control-sm {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.85rem;
+    width: auto;
+}
+
+.form-hint {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-top: 0.4rem;
+}
+
+/* Interactive Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.btn:active { transform: scale(0.98); }
+
+.btn-primary {
+    background-color: var(--color-primary);
+    color: white;
+}
+.btn-primary:hover { background-color: var(--color-primary-hover); }
+
+.btn-secondary {
+    background-color: #fff;
+    border-color: var(--border-color);
+    color: var(--text-main);
+}
+.btn-secondary:hover { background-color: #f1f5f9; }
+
+.btn-delete {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s, color 0.2s;
+}
+.btn-delete:hover {
+    background-color: #fef2f2;
+    color: var(--color-danger);
+}
+
+/* Tree Component Enhancements */
+.tree-container {
+    background: #fafafa;
+    border-radius: 6px;
+    padding: 1rem;
+}
+
+ul.perm-tree-branch {
+    list-style-type: none;
+    padding-left: 1.75rem;
+    position: relative;
+    margin: 0;
+}
+
+.perm-tree-branch::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 8px;
+    bottom: 0;
+    width: 1px;
+    background: var(--border-color);
+}
+
+li.perm-tree-node {
+    margin: 0.5rem 0;
+    position: relative;
+}
+
+li.perm-tree-node::before {
+    content: '';
+    position: absolute;
+    top: 18px;
+    left: -20px;
+    width: 20px;
+    height: 1px;
+    background: var(--border-color);
+}
+
+.perm-node-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fff;
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    gap: 1rem;
+}
+
+.perm-name {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.badge {
+    font-size: 0.75rem;
+    background: #f1f5f9;
+    color: var(--text-muted);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.perm-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.empty-state {
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+    padding: 2rem 0;
+}
+
+/* Flash messaging system design adjustments */
+.flashes {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.5rem 0;
+}
+.flash-message {
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+}
+.flash-message.success { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+.flash-message.danger { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
