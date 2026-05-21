@@ -1,23 +1,49 @@
 /* ==========================================================================
-   Variables & Reset
+   KAES Application - Modern CSS Stylesheet
+   ========================================================================== */
+
+/* ==========================================================================
+   Variables & Theme
    ========================================================================== */
 :root {
-    --primary-color: #4f46e5;       /* Modern Indigo */
+    /* Primary Colors */
+    --primary-color: #4f46e5;
     --primary-hover: #4338ca;
-    --danger-color: #ef4444;        /* Crimson Red */
-    --danger-hover: #dc2626;
-    --success-color: #10b981;       /* Emerald Green */
+    --primary-light: #e0e7ff;
+    
+    /* Status Colors */
+    --success-color: #10b981;
     --success-bg: #ecfdf5;
-    --warning-color: #f59e0b;       /* Amber */
-    --text-main: #1f2937;           /* Off-black */
-    --text-muted: #6b7280;          /* Charcoal grey */
-    --bg-main: #f9fafb;             /* Soft light grey */
+    --success-text: #065f46;
+    --danger-color: #ef4444;
+    --danger-hover: #dc2626;
+    --danger-bg: #fef2f2;
+    --danger-text: #991b1b;
+    --warning-color: #f59e0b;
+    --warning-bg: #fffbeb;
+    
+    /* Neutral Colors */
+    --text-main: #1f2937;
+    --text-secondary: #4b5563;
+    --text-muted: #6b7280;
+    --bg-main: #f3f4f6;
     --bg-card: #ffffff;
     --border-color: #e5e7eb;
+    --border-light: #f3f4f6;
+    
+    /* Spacing & Layout */
     --radius: 8px;
+    --radius-lg: 12px;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
     --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.2s ease;
 }
 
+/* ==========================================================================
+   Reset & Base Styles
+   ========================================================================== */
 * {
     box-sizing: border-box;
     margin: 0;
@@ -25,39 +51,49 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background-color: var(--bg-main);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
     color: var(--text-main);
-    line-height: 1.5;
-    padding: 40px 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    line-height: 1.6;
     min-height: 100vh;
+    padding: 2rem 1.5rem;
 }
 
 /* ==========================================================================
-   Typography & Links
+   Typography
    ========================================================================== */
 h1 {
-    font-size: 1.75rem;
+    font-size: 2rem;
     font-weight: 700;
-    margin-bottom: 24px;
     color: #111827;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.025em;
 }
 
 h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 1.25rem;
+    letter-spacing: -0.025em;
+}
+
+h3 {
     font-size: 1.25rem;
     font-weight: 600;
-    margin-bottom: 16px;
-    color: #374151;
+    color: #4b5563;
+    margin-bottom: 1rem;
+}
+
+p {
+    margin-bottom: 1rem;
 }
 
 a {
     color: var(--primary-color);
     text-decoration: none;
     font-weight: 500;
-    transition: color 0.2s ease;
+    transition: color var(--transition-fast);
 }
 
 a:hover {
@@ -66,33 +102,74 @@ a:hover {
 }
 
 hr {
-    border: 0;
+    border: none;
     height: 1px;
-    background: var(--border-color);
-    margin: 32px 0;
-    width: 100%;
+    background: linear-gradient(to right, transparent, var(--border-color), transparent);
+    margin: 2rem 0;
 }
 
 /* ==========================================================================
-   Layout Containers (Universal Body wrappers)
+   Layout Containers
    ========================================================================== */
-/* Wraps around the content inside {% block body %} implicitly */
+.app-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+}
+
 body > h1,
 body > form,
 body > p,
 body > a,
 body > table {
-    width: 100%;
     max-width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
-/* Handle login page centering narrow layout */
+/* Login page centering */
 body:has(form[action*="log_in"]) {
+    display: flex;
+    flex-direction: column;
     justify-content: center;
+    align-items: center;
+    min-height: 100vh;
 }
 
 body:has(form[action*="log_in"]) h1 {
     text-align: center;
+    margin-bottom: 2rem;
+}
+
+/* ==========================================================================
+   Cards & Sections
+   ========================================================================== */
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow);
+    transition: box-shadow var(--transition-normal);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-lg);
+}
+
+.form-section {
+    grid-column: 1;
+}
+
+.tree-section {
+    grid-column: 2;
+}
+
+@media (max-width: 900px) {
+    .form-section,
+    .tree-section {
+        grid-column: 1;
+    }
 }
 
 /* ==========================================================================
@@ -106,30 +183,37 @@ body:has(form[action*="log_in"]) h1 {
     list-style: none;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
     max-width: 400px;
     width: 100%;
 }
 
 .flash-message {
-    padding: 12px 16px;
+    padding: 14px 18px;
     border-radius: var(--radius);
     font-size: 0.95rem;
     font-weight: 500;
     box-shadow: var(--shadow);
     border-left: 4px solid transparent;
     background: white;
+    transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+}
+
+.flash-message.fade-out {
+    opacity: 0;
+    transform: translateY(-20px);
 }
 
 .flash-message.success {
     background-color: var(--success-bg);
-    color: #065f46;
+    color: var(--success-text);
     border-left-color: var(--success-color);
 }
 
-.flash-message.danger, .flash-message.error {
-    background-color: #fef2f2;
-    color: #991b1b;
+.flash-message.danger,
+.flash-message.error {
+    background-color: var(--danger-bg);
+    color: var(--danger-text);
     border-left-color: var(--danger-color);
 }
 
@@ -138,107 +222,184 @@ body:has(form[action*="log_in"]) h1 {
    ========================================================================== */
 form {
     background: var(--bg-card);
-    padding: 28px;
-    border-radius: var(--radius);
+    padding: 2rem;
+    border-radius: var(--radius-lg);
     border: 1px solid var(--border-color);
     box-shadow: var(--shadow);
     width: 100%;
-    margin-bottom: 20px;
+    margin-bottom: 1.5rem;
 }
 
-/* Strict layout fixing for the Login Form and Create Form blocks */
-form div, form p {
-    margin-bottom: 16px;
+form div {
+    margin-bottom: 1.25rem;
 }
 
 form label {
     display: block;
     font-size: 0.875rem;
     font-weight: 600;
-    margin-bottom: 6px;
-    color: #4b5563;
+    margin-bottom: 0.5rem;
+    color: var(--text-secondary);
 }
 
-/* Style raw inputs generated by WTForms */
 form input[type="text"],
-form input[type="password"] {
+form input[type="password"],
+form input[type="number"],
+form select,
+.form-control {
     width: 100%;
-    padding: 10px 14px;
+    padding: 0.75rem 1rem;
     font-size: 1rem;
     border: 1px solid #d1d5db;
-    border-radius: 6px;
+    border-radius: var(--radius);
     background-color: #fff;
     color: var(--text-main);
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
     outline: none;
-    margin-bottom: 16px; /* Spacing fallback */
 }
 
 form input[type="text"]:focus,
-form input[type="password"]:focus {
+form input[type="password"]:focus,
+form input[type="number"]:focus,
+form select:focus,
+.form-control:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    box-shadow: 0 0 0 3px var(--primary-light);
 }
 
-/* Buttons and Submit elements */
-input[type="submit"],
-button[type="submit"],
-.btn {
-    display: inline-block;
-    width: 100%;
-    padding: 12px 20px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    border-radius: 6px;
-    border: 1px solid transparent;
-    cursor: pointer;
-    transition: background-color 0.15s, transform 0.1s;
-    text-align: center;
+.form-hint {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-top: 0.4rem;
 }
 
-input[type="submit"], button[type="submit"]:not([style*="color: red"]) {
-    background-color: var(--primary-color);
-    color: white;
+.form-control-sm {
+    padding: 0.375rem 0.625rem;
+    font-size: 0.875rem;
+    width: auto;
 }
 
-input[type="submit"]:hover, button[type="submit"]:not([style*="color: red"]):hover {
-    background-color: var(--primary-hover);
-}
-
-input[type="submit"]:active, button[type="submit"]:active {
-    transform: scale(0.98);
+/* Inline forms in tables */
+table form {
+    background: transparent !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
 }
 
 /* ==========================================================================
-   Data Tables (User Management UI)
+   Buttons
+   ========================================================================== */
+input[type="submit"],
+button[type="submit"],
+button[type="button"],
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: var(--radius);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-align: center;
+    text-decoration: none;
+}
+
+input[type="submit"],
+button[type="submit"]:not([style*="color: red"]),
+button[type="button"]:not([style*="color: red"]) {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+    color: white;
+    box-shadow: var(--shadow-sm);
+}
+
+input[type="submit"]:hover,
+button[type="submit"]:not([style*="color: red"]):hover,
+button[type="button"]:not([style*="color: red"]):hover {
+    background: linear-gradient(135deg, var(--primary-hover) 0%, #3730a3 100%);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+}
+
+input[type="submit"]:active,
+button[type="submit"]:active,
+button[type="button"]:active {
+    transform: translateY(0);
+}
+
+.btn-secondary {
+    background-color: #fff;
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+}
+
+.btn-secondary:hover {
+    background-color: #f9fafb;
+    border-color: #d1d5db;
+}
+
+/* Delete buttons */
+button[style*="color: red"],
+.btn-delete {
+    background-color: var(--danger-bg) !important;
+    color: var(--danger-color) !important;
+    border: 1px solid #fecaca !important;
+}
+
+button[style*="color: red"]:hover,
+.btn-delete:hover {
+    background-color: var(--danger-color) !important;
+    color: white !important;
+    border-color: var(--danger-color) !important;
+}
+
+/* Full width buttons for login */
+body:has(form[action*="log_in"]) input[type="submit"] {
+    width: 100%;
+}
+
+/* ==========================================================================
+   Tables
    ========================================================================== */
 table {
     background: var(--bg-card);
-    border-radius: var(--radius) !important; /* Force override structural limits */
-    border: 1px solid var(--border-color) !important;
-    border-collapse: separate !important; /* Enables corner radius */
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+    border-collapse: separate;
     border-spacing: 0;
     box-shadow: var(--shadow);
     overflow: hidden;
-    margin-top: 12px;
+    width: 100%;
+    margin: 1.5rem 0;
 }
 
 th {
-    background-color: #f3f4f6;
-    color: #374151;
+    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+    color: var(--text-secondary);
     font-weight: 600;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    padding: 14px 16px !important;
-    border-bottom: 1px solid var(--border-color);
+    padding: 1rem 1.25rem;
+    border-bottom: 2px solid var(--border-color);
+    text-align: left;
 }
 
 td {
-    padding: 14px 16px !important;
+    padding: 1rem 1.25rem;
     border-bottom: 1px solid var(--border-color);
     font-size: 0.95rem;
-    color: #4b5563;
+    color: var(--text-secondary);
+    vertical-align: middle;
 }
 
 tr:last-child td {
@@ -249,131 +410,66 @@ tr:hover td {
     background-color: #f9fafb;
 }
 
-/* Inner table forms and UI adjustments */
-table form {
-    background: transparent !important;
-    padding: 0 !important;
-    border: none !important;
-    box-shadow: none !important;
-    margin: 0 !important;
-    display: flex !important;
-    align-items: center;
-    flex-wrap: wrap;
+/* Table within table styling */
+table table {
+    margin: 0;
+    border: none;
+    box-shadow: none;
+    background: transparent;
 }
 
-table label {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-weight: 500;
-    cursor: pointer;
-    margin: 0 12px 0 0;
-}
-
-table input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    accent-color: var(--primary-color);
-    cursor: pointer;
-}
-
-/* Specific button style overrides for Table actions */
-table button[type="submit"] {
-    width: auto !important;
-    padding: 6px 12px !important;
-    font-size: 0.85rem !important;
-}
-
-table button[style*="color: red"] {
-    background-color: #fef2f2 !important;
-    color: var(--danger-color) !important;
-    border: 1px solid #fca5a5 !important;
-    width: auto !important;
-    padding: 6px 12px !important;
-    font-size: 0.85rem !important;
-}
-
-table button[style*="color: red"]:hover {
-    background-color: var(--danger-color) !important;
-    color: white !important;
+table table td {
+    padding: 0;
+    border: none;
 }
 
 /* ==========================================================================
    Dashboard Navigation Links
    ========================================================================== */
 body:has(h1:contains("Welkom bij KAES")) a[href*="logout"],
-body:has(h1:contains("Welkom bij KAES")) a[href*="user_management"] {
-    display: inline-block;
+body:has(h1:contains("Welkom bij KAES")) a[href*="user_management"],
+body:has(h1:contains("Welkom bij KAES")) a[href*="permission_management"],
+body:has(h1:contains("Welkom bij KAES")) a[href*="exam_management"] {
+    display: block;
     background: var(--bg-card);
-    padding: 16px 24px;
-    margin: 8px 0;
+    padding: 1.25rem 1.5rem;
+    margin: 0.75rem 0;
     border-radius: var(--radius);
     border: 1px solid var(--border-color);
-    box-shadow: var(--shadow);
+    box-shadow: var(--shadow-sm);
     font-size: 1.1rem;
-    width: 100%;
-    max-width: 1000px;
-    text-align: left;
+    font-weight: 500;
+    transition: all var(--transition-normal);
+}
+
+body:has(h1:contains("Welkom bij KAES")) a[href*="logout"]:hover,
+body:has(h1:contains("Welkom bij KAES")) a[href*="user_management"]:hover,
+body:has(h1:contains("Welkom bij KAES")) a[href*="permission_management"]:hover,
+body:has(h1:contains("Welkom bij KAES")) a[href*="exam_management"]:hover {
+    transform: translateX(4px);
+    box-shadow: var(--shadow);
+    text-decoration: none;
 }
 
 body:has(h1:contains("Welkom bij KAES")) a[href*="logout"] {
     color: var(--danger-color);
     border-color: #fee2e2;
 }
+
 body:has(h1:contains("Welkom bij KAES")) a[href*="logout"]:hover {
-    background: #fef2f2;
+    background: var(--danger-bg);
 }
 
-/* Back link layout styling */
-p:has(a[href*="dashboard"]) {
-    margin-bottom: 12px;
+/* Back link styling */
+p:has(a[href*="dashboard"]),
+a[href*="dashboard"] {
+    margin-bottom: 1rem;
+    display: inline-block;
 }
 
-:root {
-    --bg-primary: #f8fafc;
-    --bg-card: #ffffff;
-    --text-main: #1e293b;
-    --text-muted: #64748b;
-    --color-primary: #3b82f6;
-    --color-primary-hover: #2563eb;
-    --color-danger: #ef4444;
-    --color-danger-hover: #dc2626;
-    --border-color: #e2e8f0;
-    --radius: 8px;
-    --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-}
-
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background-color: var(--bg-primary);
-    color: var(--text-main);
-    margin: 0;
-    padding: 2rem;
-}
-
-.app-container {
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-.app-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 1rem;
-}
-
-h1, h2 {
-    margin: 0;
-    color: var(--text-main);
-}
-
-h1 { font-size: 1.85rem; }
-h2 { font-size: 1.25rem; margin-bottom: 1.25rem; }
-
-/* Grid Layouts */
+/* ==========================================================================
+   Permission Tree Component
+   ========================================================================== */
 .management-grid {
     display: grid;
     grid-template-columns: 1fr 2fr;
@@ -381,125 +477,30 @@ h2 { font-size: 1.25rem; margin-bottom: 1.25rem; }
 }
 
 @media (max-width: 900px) {
-    .management-grid { grid-template-columns: 1fr; }
+    .management-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
-/* Cards & Containers */
-.card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius);
-    padding: 1.5rem;
-    box-shadow: var(--shadow);
-}
-
-/* Form Styling */
-.form-group {
-    margin-bottom: 1.25rem;
-}
-
-.form-group label {
-    display: block;
-    font-weight: 500;
-    margin-bottom: 0.5rem;
-    font-size: 0.9rem;
-}
-
-.form-control {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 0.6rem 0.75rem;
-    font-size: 0.95rem;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    background-color: #fff;
-    color: var(--text-main);
-    transition: border-color 0.15s ease;
-}
-
-.form-control:focus {
-    outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-}
-
-.form-control-sm {
-    padding: 0.35rem 0.5rem;
-    font-size: 0.85rem;
-    width: auto;
-}
-
-.form-hint {
-    display: block;
-    color: var(--text-muted);
-    font-size: 0.8rem;
-    margin-top: 0.4rem;
-}
-
-/* Interactive Buttons */
-.btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.6rem 1.2rem;
-    font-size: 0.95rem;
-    font-weight: 500;
-    border-radius: 6px;
-    border: 1px solid transparent;
-    cursor: pointer;
-    text-decoration: none;
-    transition: background 0.2s, transform 0.1s;
-}
-
-.btn:active { transform: scale(0.98); }
-
-.btn-primary {
-    background-color: var(--color-primary);
-    color: white;
-}
-.btn-primary:hover { background-color: var(--color-primary-hover); }
-
-.btn-secondary {
-    background-color: #fff;
-    border-color: var(--border-color);
-    color: var(--text-main);
-}
-.btn-secondary:hover { background-color: #f1f5f9; }
-
-.btn-delete {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: 1.1rem;
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 4px;
-    transition: background-color 0.2s, color 0.2s;
-}
-.btn-delete:hover {
-    background-color: #fef2f2;
-    color: var(--color-danger);
-}
-
-/* Tree Component Enhancements */
 .tree-container {
     background: #fafafa;
-    border-radius: 6px;
-    padding: 1rem;
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    border: 1px solid var(--border-light);
 }
 
 ul.perm-tree-branch {
-    list-style-type: none;
-    padding-left: 1.75rem;
+    list-style: none;
+    padding-left: 1.5rem;
     position: relative;
     margin: 0;
 }
 
-.perm-tree-branch::before {
+ul.perm-tree-branch::before {
     content: '';
     position: absolute;
     top: 0;
-    left: 8px;
+    left: 6px;
     bottom: 0;
     width: 1px;
     background: var(--border-color);
@@ -513,9 +514,9 @@ li.perm-tree-node {
 li.perm-tree-node::before {
     content: '';
     position: absolute;
-    top: 18px;
-    left: -20px;
-    width: 20px;
+    top: 16px;
+    left: -18px;
+    width: 18px;
     height: 1px;
     background: var(--border-color);
 }
@@ -526,24 +527,35 @@ li.perm-tree-node::before {
     justify-content: space-between;
     background: #fff;
     border: 1px solid var(--border-color);
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
     gap: 1rem;
+    transition: box-shadow var(--transition-fast);
+}
+
+.perm-node-card:hover {
+    box-shadow: var(--shadow);
 }
 
 .perm-name {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    font-size: 0.95rem;
+}
+
+.emoji-key {
+    font-size: 1.1rem;
 }
 
 .badge {
-    font-size: 0.75rem;
-    background: #f1f5f9;
+    font-size: 0.7rem;
+    background: #f3f4f6;
     color: var(--text-muted);
-    padding: 2px 6px;
+    padding: 0.2rem 0.5rem;
     border-radius: 4px;
+    font-weight: 500;
 }
 
 .perm-actions {
@@ -556,20 +568,124 @@ li.perm-tree-node::before {
     color: var(--text-muted);
     font-style: italic;
     text-align: center;
-    padding: 2rem 0;
+    padding: 2rem;
+    background: #fafafa;
+    border-radius: var(--radius);
 }
 
-/* Flash messaging system design adjustments */
-.flashes {
-    list-style: none;
-    padding: 0;
-    margin: 0 0 1.5rem 0;
+/* Inherited permission styling */
+.inherited-checked {
+    background-color: #eff6ff !important;
+    border: 1px dashed #60a5fa !important;
 }
-.flash-message {
-    padding: 0.75rem 1rem;
-    border-radius: 6px;
-    margin-bottom: 0.5rem;
-    font-size: 0.95rem;
+
+.inherited-checked .perm-text::after {
+    content: " (inherited)";
+    font-size: 0.75em;
+    font-style: italic;
+    color: #60a5fa;
 }
-.flash-message.success { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-.flash-message.danger { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+.perm-label {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px !important;
+    margin-right: 8px !important;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+}
+
+.perm-label:hover {
+    background-color: #f3f4f6;
+}
+
+.perm-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary-color);
+    cursor: pointer;
+}
+
+/* ==========================================================================
+   App Header
+   ========================================================================== */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.app-header h1 {
+    margin-bottom: 0;
+}
+
+/* ==========================================================================
+   Responsive Adjustments
+   ========================================================================== */
+@media (max-width: 768px) {
+    body {
+        padding: 1rem;
+    }
+    
+    h1 {
+        font-size: 1.5rem;
+    }
+    
+    h2 {
+        font-size: 1.25rem;
+    }
+    
+    form {
+        padding: 1.5rem;
+    }
+    
+    .flashes {
+        left: 20px;
+        right: 20px;
+        max-width: none;
+    }
+    
+    table {
+        font-size: 0.875rem;
+    }
+    
+    th, td {
+        padding: 0.75rem 0.875rem;
+    }
+    
+    .perm-node-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    
+    .perm-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}
+
+/* ==========================================================================
+   Utility Classes
+   ========================================================================== */
+.text-center {
+    text-align: center;
+}
+
+.mt-1 { margin-top: 0.5rem; }
+.mt-2 { margin-top: 1rem; }
+.mt-3 { margin-top: 1.5rem; }
+.mb-1 { margin-bottom: 0.5rem; }
+.mb-2 { margin-bottom: 1rem; }
+.mb-3 { margin-bottom: 1.5rem; }
+
+.hidden {
+    display: none;
+}
