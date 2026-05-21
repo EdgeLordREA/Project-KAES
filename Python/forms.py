@@ -1,5 +1,6 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField
+from wtforms import StringField, PasswordField, SubmitField, IntegerField
+from wtforms.fields.choices import SelectField
 from wtforms.validators import DataRequired, Length
 
 
@@ -17,3 +18,14 @@ class CreatePermissionForm(FlaskForm):
     permission_name = StringField('Permission Name', validators=[DataRequired(), Length(min=3, max=25)])
     # We will dynamically populate choices in the route
     submit = SubmitField('Create Permission')
+
+class CreateExamForm(FlaskForm):
+    exam_name = StringField('Exam Name', validators=[DataRequired(), Length(min=3, max=25)])
+    exam_description = StringField('Exam Description', validators=[DataRequired(), Length(max=500)])
+    submit = SubmitField('Create Exam')
+
+class CreateQuestionForm(FlaskForm):
+    question_text = StringField('Question Text', validators=[DataRequired(), Length(min=10, max=500)])
+    category = SelectField('Category', validators=[DataRequired()])
+    modifier = IntegerField('Modifier', validators=[DataRequired()])
+    submit = SubmitField('Create Question')

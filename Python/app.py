@@ -1,3 +1,4 @@
+from forms import CreateExamForm
 import sqlite3
 from datetime import timedelta
 from functools import wraps
@@ -90,9 +91,32 @@ def has_permission(permission_name):
         return True
     return False
 
+def permission_required_or(*args):
+    if not args:
+        raise ValueError("At least one permission must be provided")
+    if 'admin' in g.user_permissions:
+        return True
+    for permission in args:
+        if permission in g.user_permissions:
+            return True
+    return False
+
+def permission_required_and(*args):
+    if not args:
+        raise ValueError("At least one permission must be provided")
+    if 'admin' in g.user_permissions:
+        return True
+    for permission in args:
+        if permission not in g.user_permissions:
+            return False
+    return True
 
 # pyrefly: ignore [unsupported-operation]
 app.jinja_env.globals['permission_required'] = has_permission
+# pyrefly: ignore [unsupported-operation]
+app.jinja_env.globals['permission_required_or'] = permission_required_or
+# pyrefly: ignore [unsupported-operation]
+app.jinja_env.globals['permission_required_and'] = permission_required_and
 
 
 @app.route('/logout')
@@ -230,7 +254,6 @@ def update_permissions(user_id):
     return redirect(url_for('user_management'))
 
 # endregion
-
 # region Permission Management
 @app.route('/permission_management', methods=['GET', 'POST'])
 @permission_required('admin')
@@ -274,9 +297,111 @@ def permission_management():
             return redirect(url_for('permission_management'))
 
     return render_template('permission_management.html', form=form, permissions=all_permissions)
-
-
 # endregion
+#region Exam Management
+@app.route('/exam_management', methods=['GET', 'POST'])
+def exam_management():
+    create_exam = CreateExamForm()
+    exams = get_db().get_all_exams()
+    return render_template('exam_management.html', form=create_exam, exams=exams)
 
+
+# Add these inside your Exam Management section in app.py
+
+@app.route('/exam_management/edit/<int:examid>', methods=['GET', 'POST'])
+@permission_required('manage_exams')
+def exam_editor(examid: int):
+    if examid is None:
+        flash("Exam ID cannot be None.", "danger")
+        return redirect(url_for('exam_management'))
+
+    db = get_db()  # Used get_db() for pool safety consistent with your other routes
+    exam = db.get_exam_by_id(examid)
+
+    if not exam:
+        flash("Exam not found.", "danger")
+        return redirect(url_for('exam_management'))
+
+    # Fetch all categories to populate the dropdown selection
+    categories = db.get_all_categories()
+
+    # Check if user has the specific permission to add a new category dynamically
+    can_create_category = has_permission('create_categories')
+
+    return render_template(
+        'exam_editor.html',
+        exam=exam,
+        categories=categories,
+        can_create_category=can_create_category
+    )
+
+
+@app.route('/exam_management/save_question', methods=['POST'])
+@permission_required('manage_exams')
+def save_question():
+    import flask
+    db = get_db()
+
+    exam_id = flask.request.form.get('exam_id')
+    question_id = flask.request.form.get('question_id')
+    question_text = flask.request.form.get('question_text')
+    category_id = flask.request.form.get('category_id')
+    new_category_name = flask.request.form.get('new_category_name')
+    modifier = flask.request.form.get('modifier')
+
+    # 1. Handle dynamic new category creation if selected and allowed
+    if category_id == 'NEW' and new_category_name:
+        if not has_permission('create_categories'):
+            flash("You do not have permission to create categories.", "danger")
+            return redirect(url_for('exam_editor', examid=exam_id))
+        category_id = db.create_category(new_category_name.strip())
+        flash(f"Category '{new_category_name}' created successfully.", "success")
+
+    # 2. Update the existing question attributes natively
+    db.edit_question(question_id, question_text, category_id, modifier)
+
+    flash("Question updated successfully.", "success")
+    return redirect(url_for('exam_editor', examid=exam_id))
+
+
+@app.route('/exam_management/add_question_to_exam', methods=['POST'])
+@permission_required('manage_exams')
+def add_question_to_exam():
+    import flask
+    db = get_db()
+
+    exam_id = flask.request.form.get('exam_id')
+    question_text = flask.request.form.get('question_text')
+    category_id = flask.request.form.get('category_id')
+    new_category_name = flask.request.form.get('new_category_name')
+    modifier = flask.request.form.get('modifier')
+
+    # 1. Handle dynamic new category creation if selected and allowed
+    if category_id == 'NEW' and new_category_name:
+        if not has_permission('create_categories'):
+            flash("You do not have permission to create categories.", "danger")
+            return redirect(url_for('exam_editor', examid=exam_id))
+        category_id = db.create_category(new_category_name.strip())
+        flash(f"Category '{new_category_name}' created successfully.", "success")
+    elif not category_id or category_id == 'NEW':
+        flash("Please select a valid category.", "danger")
+        return redirect(url_for('exam_editor', examid=exam_id))
+
+    try:
+        # 2. Create the question in the global pool
+        # Cast modifier to int to match database schema expectations
+        # pyrefly: ignore [bad-argument-type]
+        new_question_id = db.create_question(question_text, int(category_id), int(modifier))
+
+        # 3. Link the new question specifically to this exam
+        # pyrefly: ignore [bad-argument-type]
+        db.add_question_to_exam(int(exam_id), new_question_id)
+
+        flash("Question created and added to exam successfully.", "success")
+    except Exception as e:
+        flash(f"Error adding question: {str(e)}", "danger")
+
+    return redirect(url_for('exam_editor', examid=exam_id))
+#endregion
 if __name__ == '__main__':
     app.run(debug=True)
