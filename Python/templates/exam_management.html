@@ -1,25 +1,32 @@
 {% extends 'template.html' %}
 {% block body %}
-    <h1>Exam Management</h1>
-<a href="{{ url_for('dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
+<div class="content-wrapper">
+    <header class="app-header">
+        <h1>Exam Management</h1>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
+    </header>
+
     {% if permission_required_or('manage_exams', 'create_exams') %}
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Exam Name</th>
-                    <th>Descriptions</th>
-                    <th> Edit</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for exam in exams %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
                     <tr>
-                        <td>{{ exam.name }}</td>
-                        <td>{{ exam.description }}</td>
-                        <td><a href="{{ url_for('exam_editor', examid=exam.id) }}">Edit</a></td>
+                        <th>Exam Name</th>
+                        <th>Description</th>
+                        <th style="width: 120px;">Actions</th>
                     </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    {% for exam in exams %}
+                        <tr>
+                            <td><strong>{{ exam.name }}</strong></td>
+                            <td class="text-muted">{{ exam.description }}</td>
+                            <td><a href="{{ url_for('exam_editor', examid=exam.id) }}" class="btn btn-secondary" style="padding: 4px 12px; font-size: 0.85rem;">Edit</a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     {% endif %}
+</div>
 {% endblock body %}

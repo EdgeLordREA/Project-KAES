@@ -1,163 +1,124 @@
 {% extends 'template.html' %}
 {% block body %}
-    <h1>User Management</h1>
-    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
+<div class="content-wrapper">
+    <header class="app-header">
+        <h1>User Management</h1>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
+    </header>
 
-    <hr>
-
-    <h2>Create New User</h2>
-    <form method="POST" action="{{ url_for('user_management') }}">
-        {{ form.hidden_tag() }}
-        <div>
-            {{ form.username.label }} <br>
-            {{ form.username() }}
-        </div>
-        <div>
-            {{ form.password.label }} <br>
-            {{ form.password() }}
-        </div>
-        <br>
-        {{ form.submit() }}
-    </form>
-
-    <hr>
+    <div class="card">
+        <h2>Create New User</h2>
+        <form method="POST" action="{{ url_for('user_management') }}" style="background:transparent; border:none; padding:0; box-shadow:none; margin:0;">
+            {{ form.hidden_tag() }}
+            <div class="form-group">
+                {{ form.username.label }}
+                {{ form.username(class="form-control") }}
+            </div>
+            <div class="form-group">
+                {{ form.password.label }}
+                {{ form.password(class="form-control") }}
+            </div>
+            {{ form.submit(class="btn btn-primary", style="width: auto;") }}
+        </form>
+    </div>
 
     <h2>Existing Users</h2>
-    <table border="1" cellpadding="8" style="border-collapse: collapse; width: 100%; text-align: left;">
-        <thead>
-        <tr>
-            <th>ID</th>
-            <th>Username</th>
-            <th>Created At</th>
-            <th>Permissions (Inherited checked options automatically lock)</th>
-            <th>Actions</th>
-        </tr>
-        </thead>
-        <tbody>
-        {% for user in users %}
+    <div class="table-responsive">
+        <table>
+            <thead>
             <tr>
-                <td>{{ user.id }}</td>
-                <td><strong>{{ user.username }}</strong></td>
-                <td>{{ user.create_time }}</td>
-                <td>
-                    <form method="POST" action="{{ url_for('update_permissions', user_id=user.id) }}"
-                          style="display:inline;" class="user-perm-form">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                        {% for perm in available_permissions %}
-                            <label style="margin-right: 15px; display: inline-block; padding: 4px; border-radius: 3px;"
-                                   class="perm-label">
-                                <input type="checkbox"
-                                       name="permissions_{{ user.id }}"
-                                       value="{{ perm.id }}"
-                                       data-id="{{ perm.id }}"
-                                       data-parent-id="{{ perm.parent_id if perm.parent_id else 'None' }}"
-                                       {% if perm.name in user.permissions %}checked{% endif %}
-
-                                        {# DISABLE IF: #}
-                                       {% if
-                   user.username == g.username or
-                   ('admin' in user.permissions and 'admin' not in g.user_permissions) or
-                   (perm.name not in g.user_permissions) %}disabled{% endif %}
-                                >
-                                <span class="perm-text">{{ perm.name }}</span>
-                            </label>
-                        {% endfor %}
-                        {% if user.username != g.username %}
-                            <button type="submit" style="margin-left: 10px;">Save Perms</button>
-                        {% endif %}
-                    </form>
-                </td>
-                <td>
-                    {% if user.id != g.user_id %}
-                        <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}"
-                              onsubmit="return confirm('Are you sure you want to delete user: {{ user.username }}?');"
-                              style="display:inline;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" style="color: red;">Delete</button>
-                        </form>
-                    {% else %}
-                        <span style="color: gray; font-style: italic;">Logged In</span>
-                    {% endif %}
-                </td>
+                <th style="width: 60px;">ID</th>
+                <th>Username</th>
+                <th>Created At</th>
+                <th>Permissions</th>
+                <th style="width: 120px; text-align: right;">Actions</th>
             </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+            {% for user in users %}
+                <tr>
+                    <td>{{ user.id }}</td>
+                    <td><strong>{{ user.username }}</strong></td>
+                    <td class="text-muted">{{ user.create_time }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('update_permissions', user_id=user.id) }}" class="user-perm-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="perm-checkbox-group">
+                                {% for perm in available_permissions %}
+                                    <label class="perm-label">
+                                        <input type="checkbox"
+                                               name="permissions_{{ user.id }}"
+                                               value="{{ perm.id }}"
+                                               data-id="{{ perm.id }}"
+                                               data-parent-id="{{ perm.parent_id if perm.parent_id else 'None' }}"
+                                               {% if perm.name in user.permissions %}checked{% endif %}
+                                               {% if user.username == g.username or ('admin' in user.permissions and 'admin' not in g.user_permissions) or (perm.name not in g.user_permissions) %}disabled{% endif %}>
+                                        <span class="perm-text">{{ perm.name }}</span>
+                                    </label>
+                                {% endfor %}
+                                {% if user.username != g.username %}
+                                    <button type="submit" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.85rem; margin-left: 0.5rem;">Save</button>
+                                {% endif %}
+                            </div>
+                        </form>
+                    </td>
+                    <td style="text-align: right;">
+                        {% if user.id != g.user_id %}
+                            <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" onsubmit="return confirm('Are you sure you want to delete user: {{ user.username }}?');" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-danger" style="padding: 4px 10px; font-size: 0.85rem;">Delete</button>
+                            </form>
+                        {% else %}
+                            <span style="color: var(--text-muted); font-style: italic; font-size: 0.9rem;">Current Session</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 
-    <style>
-        .inherited-checked {
-            background-color: #e6f7ff;
-            border: 1px dashed #1890ff;
-            color: #0050b3;
-        }
-
-        .inherited-checked .perm-text::after {
-            content: " (inherited)";
-            font-size: 0.75em;
-            font-style: italic;
-            color: #40a9ff;
-        }
-    </style>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const forms = document.querySelectorAll('.user-perm-form');
-
-            forms.forEach(form => {
-                const checkboxes = form.querySelectorAll('input[type="checkbox"]');
-
-                function updateInheritance() {
-                    // Reset temporary tracking assignments
-                    checkboxes.forEach(cb => {
-                        if (cb.hasAttribute('data-inherited')) {
-                            cb.checked = false;
-                            cb.disabled = false;
-                            cb.removeAttribute('data-inherited');
-                        }
-                        cb.closest('.perm-label').classList.remove('inherited-checked');
-                    });
-
-                    // Build graph map of current checked nodes
-                    let checkedIds = new Set();
-                    checkboxes.forEach(cb => {
-                        if (cb.checked) {
-                            checkedIds.add(cb.getAttribute('data-id'));
-                        }
-                    });
-
-                    // Propagate down through tree depth limits sequentially
-                    let changesMade = true;
-                    while (changesMade) {
-                        changesMade = false;
-                        checkboxes.forEach(cb => {
-                            const parentId = cb.getAttribute('data-parent-id');
-                            const currentId = cb.getAttribute('data-id');
-
-                            // FIX: If the parent is checked, this child MUST be inherited and disabled,
-                            // regardless of whether it was already checked in the HTML markup.
-                            if (parentId !== 'None' && checkedIds.has(parentId)) {
-                                if (!cb.hasAttribute('data-inherited')) {
-                                    checkedIds.add(currentId);
-                                    cb.checked = true;
-                                    cb.disabled = true;
-                                    cb.setAttribute('data-inherited', 'true');
-                                    cb.closest('.perm-label').classList.add('inherited-checked');
-                                    changesMade = true;
-                                }
-                            }
-                        });
-                    }
-                }
-
-                // Attach dynamically to reactive inputs
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const forms = document.querySelectorAll('.user-perm-form');
+        forms.forEach(form => {
+            const checkboxes = form.querySelectorAll('input[type="checkbox"]');
+            function updateInheritance() {
                 checkboxes.forEach(cb => {
-                    cb.addEventListener('change', updateInheritance);
+                    if (cb.hasAttribute('data-inherited')) {
+                        cb.checked = false;
+                        cb.disabled = false;
+                        cb.removeAttribute('data-inherited');
+                    }
+                    cb.closest('.perm-label').classList.remove('inherited-checked');
                 });
 
-                // Run validation on page draw setup
-                updateInheritance();
-            });
+                let checkedIds = new Set();
+                checkboxes.forEach(cb => { if (cb.checked) checkedIds.add(cb.getAttribute('data-id')); });
+
+                let changesMade = true;
+                while (changesMade) {
+                    changesMade = false;
+                    checkboxes.forEach(cb => {
+                        const parentId = cb.getAttribute('data-parent-id');
+                        const currentId = cb.getAttribute('data-id');
+                        if (parentId !== 'None' && checkedIds.has(parentId)) {
+                            if (!cb.hasAttribute('data-inherited')) {
+                                checkedIds.add(currentId);
+                                cb.checked = true;
+                                cb.disabled = true;
+                                cb.setAttribute('data-inherited', 'true');
+                                cb.closest('.perm-label').classList.add('inherited-checked');
+                                changesMade = true;
+                            }
+                        }
+                    });
+                }
+            }
+            checkboxes.forEach(cb => cb.addEventListener('change', updateInheritance));
+            updateInheritance();
         });
-    </script>
+    });
+</script>
 {% endblock body %}

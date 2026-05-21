@@ -1,137 +1,140 @@
 {% extends 'template.html' %}
 {% block body %}
-    <h1>Edit Exam</h1>
-    <a href="{{ url_for('exam_management') }}">Back to Exam Management</a>
+<div class="content-wrapper">
+    <header class="app-header">
+        <h1>Edit Exam</h1>
+        <a href="{{ url_for('exam_management') }}" class="btn btn-secondary">← Back</a>
+    </header>
 
     {% if permission_required_or('manage_exams', 'create_exams') %}
-        <h2>{{ exam.name }}</h2>
-        <h3>{{ exam.description }}</h3>
+        <div class="card" style="margin-bottom: 2rem;">
+            <h2>{{ exam.name }}</h2>
+            <p style="color: var(--text-muted); margin: 0;">{{ exam.description }}</p>
+        </div>
 
-        <table>
-        <tr>
-            <th>Question</th>
-            <th>Category</th>
-            <th>Modifier</th>
-            <th>Actions</th>
-        </tr>
-        {% for question in exam.questions %}
-            <tr id="view-row-{{ question.id }}">
-                <td>{{ question.text }}</td>
-                <td>{{ question.category_name }}</td>
-                <td>{{ question.modifier }}</td>
-                <td>
-                    <button type="button" onclick="toggleEdit('{{ question.id }}')">Edit</button>
-                    <button type="button">Delete</button>
-                </td>
-            </tr>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Question</th>
+                        <th>Category</th>
+                        <th style="width: 100px;">Modifier</th>
+                        <th style="width: 160px; text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for question in exam.questions %}
+                    <tr id="view-row-{{ question.id }}">
+                        <td>{{ question.text }}</td>
+                        <td><span class="badge" style="background:#e2e8f0; color:var(--text-main);">{{ question.category_name }}</span></td>
+                        <td>{{ question.modifier }}</td>
+                        <td style="text-align: right;">
+                            <button type="button" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.85rem;" onclick="toggleEdit('{{ question.id }}')">Edit</button>
+                            <button type="button" class="btn btn-danger" style="padding: 4px 10px; font-size: 0.85rem;">Delete</button>
+                        </td>
+                    </tr>
 
-            <tr id="edit-row-{{ question.id }}" style="display: none;">
-                <td colspan="4">
-                    <form action="{{ url_for('save_question') }}" method="POST" style="margin: 0;">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        <input type="hidden" name="exam_id" value="{{ exam.id }}">
-                        <input type="hidden" name="question_id" value="{{ question.id }}">
+                    <tr id="edit-row-{{ question.id }}" style="display: none;">
+                        <td colspan="4" style="background: #f8fafc; padding: 1rem;">
+                            <form action="{{ url_for('save_question') }}" method="POST" style="margin:0; padding:0; background:transparent; border:none; box-shadow:none;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <input type="hidden" name="exam_id" value="{{ exam.id }}">
+                                <input type="hidden" name="question_id" value="{{ question.id }}">
 
-                        <table style="width: 100%; border: none; margin: 0; padding: 0;">
-                            <tr style="border: none;">
-                                <td style="width: 40%; border: none; padding: 0;">
-                                    <input type="text" name="question_text" value="{{ question.text }}" required style="width: 95%;">
-                                </td>
-                                <td style="width: 25%; border: none; padding: 0;">
-                                    <select name="category_id" id="select-category-{{ question.id }}" onchange="handleCategoryChange(this, '{{ question.id }}')" required style="width: 90%;">
+                                <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                                    <div style="flex: 2; margin: 0;">
+                                        <input type="text" name="question_text" value="{{ question.text }}" required class="form-control">
+                                    </div>
+                                    <div style="flex: 1; margin: 0;">
+                                        <select name="category_id" id="select-category-{{ question.id }}" onchange="handleCategoryChange(this, '{{ question.id }}')" required class="form-control">
+                                            {% for cat in categories %}
+                                                <option value="{{ cat.category_id }}" {% if cat.category_id == question.category_id %}selected{% endif %}>{{ cat.name }}</option>
+                                            {% endfor %}
+                                            {% if can_create_category %}
+                                                <option value="NEW" style="color: var(--success); font-weight: bold;">+ Create New Category</option>
+                                            {% endif %}
+                                        </select>
+                                        <input type="text" name="new_category_name" id="new-cat-input-{{ question.id }}" placeholder="New category name..." class="form-control" style="display: none; margin-top: 5px;">
+                                    </div>
+                                    <div style="width: 90px; margin: 0;">
+                                        <input type="number" name="modifier" value="{{ question.modifier }}" required class="form-control">
+                                    </div>
+                                    <div style="display:flex; gap: 0.5rem; margin: 0;">
+                                        <button type="submit" class="btn btn-primary" style="padding: 0.6rem 1rem;">Save</button>
+                                        <button type="button" class="btn btn-secondary" style="padding: 0.6rem 1rem;" onclick="toggleEdit('{{ question.id }}')">Cancel</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+
+                <tr id="view-row-new">
+                    <td colspan="4" style="text-align: center; background: #f8fafc;">
+                        <button type="button" class="btn btn-secondary" onclick="toggleEdit('new')">+ Add Question</button>
+                    </td>
+                </tr>
+
+                <tr id="edit-row-new" style="display: none;">
+                    <td colspan="4" style="background: #f8fafc; padding: 1rem;">
+                        <form action="{{ url_for('add_question_to_exam') }}" method="POST" style="margin:0; padding:0; background:transparent; border:none; box-shadow:none;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <input type="hidden" name="exam_id" value="{{ exam.id }}">
+
+                            <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                                <div style="flex: 2; margin: 0;">
+                                    <input type="text" name="question_text" placeholder="Type new question text here..." required class="form-control">
+                                </div>
+                                <div style="flex: 1; margin: 0;">
+                                    <select name="category_id" id="select-category-new" onchange="handleCategoryChange(this, 'new')" required class="form-control">
+                                        <option value="" disabled selected>Select Category...</option>
                                         {% for cat in categories %}
-                                            <option value="{{ cat.category_id }}" {% if cat.category_id == question.category_id %}selected{% endif %}>
-                                                {{ cat.name }}
-                                            </option>
+                                            <option value="{{ cat.category_id }}">{{ cat.name }}</option>
                                         {% endfor %}
                                         {% if can_create_category %}
-                                            <option value="NEW" style="color: green; font-weight: bold;">+ Create New Category</option>
+                                            <option value="NEW" style="color: var(--success); font-weight: bold;">+ Create New Category</option>
                                         {% endif %}
                                     </select>
-                                    <input type="text" name="new_category_name" id="new-cat-input-{{ question.id }}" placeholder="New category name..." style="display: none; margin-top: 5px; width: 85%;">
-                                </td>
-                                <td style="width: 15%; border: none; padding: 0;">
-                                    <input type="number" name="modifier" value="{{ question.modifier }}" required style="width: 60px;">
-                                </td>
-                                <td style="width: 20%; border: none; padding: 0;">
-                                    <button type="submit">Save</button>
-                                    <button type="button" onclick="toggleEdit('{{ question.id }}')">Cancel</button>
-                                </td>
-                            </tr>
-                        </table>
-                    </form>
-                </td>
-            </tr>
-        {% endfor %}
-
-        <tr id="view-row-new">
-            <td colspan="4">
-                <button type="button" onclick="toggleEdit('new')">Add Question</button>
-            </td>
-        </tr>
-
-        <tr id="edit-row-new" style="display: none;">
-            <td colspan="4">
-                <form action="{{ url_for('add_question_to_exam') }}" method="POST" style="margin: 0;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <input type="hidden" name="exam_id" value="{{ exam.id }}">
-
-                    <table style="width: 100%; border: none; margin: 0; padding: 0;">
-                        <tr style="border: none;">
-                            <td style="width: 40%; border: none; padding: 0;">
-                                <input type="text" name="question_text" placeholder="Type new question text here..." required style="width: 95%;">
-                            </td>
-                            <td style="width: 25%; border: none; padding: 0;">
-                                <select name="category_id" id="select-category-new" onchange="handleCategoryChange(this, 'new')" required style="width: 90%;">
-                                    <option value="" disabled selected>Select Category...</option>
-                                    {% for cat in categories %}
-                                        <option value="{{ cat.category_id }}">{{ cat.name }}</option>
-                                    {% endfor %}
-                                    {% if can_create_category %}
-                                        <option value="NEW" style="color: green; font-weight: bold;">+ Create New Category</option>
-                                    {% endif %}
-                                </select>
-                                <input type="text" name="new_category_name" id="new-cat-input-new" placeholder="New category name..." style="display: none; margin-top: 5px; width: 85%;">
-                            </td>
-                            <td style="width: 15%; border: none; padding: 0;">
-                                <input type="number" name="modifier" placeholder="0" required style="width: 60px;">
-                            </td>
-                            <td style="width: 20%; border: none; padding: 0;">
-                                <button type="submit">Create</button>
-                                <button type="button" onclick="toggleEdit('new')">Cancel</button>
-                            </td>
-                        </tr>
-                    </table>
-                </form>
-            </td>
-        </tr>
-        </table>
-        <br>
-
-        <script>
-            function toggleEdit(questionId) {
-                const viewRow = document.getElementById(`view-row-${questionId}`);
-                const editRow = document.getElementById(`edit-row-${questionId}`);
-
-                if (viewRow.style.display === 'none') {
-                    viewRow.style.display = '';
-                    editRow.style.display = 'none';
-                } else {
-                    viewRow.style.display = 'none';
-                    editRow.style.display = '';
-                }
-            }
-
-            function handleCategoryChange(selectElement, questionId) {
-                const inputField = document.getElementById(`new-cat-input-${questionId}`);
-                if (selectElement.value === 'NEW') {
-                    inputField.style.display = 'block';
-                    inputField.required = true;
-                } else {
-                    inputField.style.display = 'none';
-                    inputField.required = false;
-                }
-            }
-        </script>
+                                    <input type="text" name="new_category_name" id="new-cat-input-new" placeholder="New category name..." class="form-control" style="display: none; margin-top: 5px;">
+                                </div>
+                                <div style="width: 90px; margin: 0;">
+                                    <input type="number" name="modifier" placeholder="0" required class="form-control">
+                                </div>
+                                <div style="display:flex; gap: 0.5rem; margin: 0;">
+                                    <button type="submit" class="btn btn-primary" style="padding: 0.6rem 1rem;">Create</button>
+                                    <button type="button" class="btn btn-secondary" style="padding: 0.6rem 1rem;" onclick="toggleEdit('new')">Cancel</button>
+                                </div>
+                            </div>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
     {% endif %}
+</div>
+
+<script>
+    function toggleEdit(questionId) {
+        const viewRow = document.getElementById(`view-row-${questionId}`);
+        const editRow = document.getElementById(`edit-row-${questionId}`);
+        if (viewRow.style.display === 'none') {
+            viewRow.style.display = '';
+            editRow.style.display = 'none';
+        } else {
+            viewRow.style.display = 'none';
+            editRow.style.display = '';
+        }
+    }
+    function handleCategoryChange(selectElement, questionId) {
+        const inputField = document.getElementById(`new-cat-input-${questionId}`);
+        if (selectElement.value === 'NEW') {
+            inputField.style.display = 'block';
+            inputField.required = true;
+        } else {
+            inputField.style.display = 'none';
+            inputField.required = false;
+        }
+    }
+</script>
 {% endblock body %}
