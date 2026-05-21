@@ -1,0 +1,25 @@
+{% extends 'template.html' %}
+{% block body %}
+    <h1>Exam Management</h1>
+
+    {% if permission_required_or('manage_exams', 'create_exams') %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Exam Name</th>
+                    <th>Descriptions</th>
+                    <th> Edit</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for exam in exams %}
+                    <tr>
+                        <td>{{ exam.name }}</td>
+                        <td>{{ exam.description }}</td>
+                        <td><a href="{{ url_for('exam_editor', examid=exam.id) }}">Edit</a></td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+{% endblock body %}

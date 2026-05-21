@@ -8,5 +8,9 @@
     {% if permission_required('admin') %}
     <a href="{{ url_for('permission_management') }}">Permission Management</a>
     {% endif %}
+
+    {% if permission_required_or('manage_exams', 'admin') %}
+    <a href="{{ url_for('exam_management') }}">Exam Management</a>
+    {% endif %}
     <a href="{{ url_for('logout') }}">Logout</a>
 {% endblock body %}
