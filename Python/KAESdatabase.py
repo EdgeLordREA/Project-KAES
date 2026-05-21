@@ -1,6 +1,8 @@
 import select
 import socket
 import threading
+from sqlite3 import Cursor
+
 from mysql.connector import pooling
 import mysql.connector
 import bcrypt
@@ -132,7 +134,7 @@ class KaesDatabase:
         # Seamlessly grab a completely clean, thread-isolated connection from the pool
         self.connection = _connection_pool.get_connection()
 
-    def get_cursor(self, dictionary: bool = False):
+    def get_cursor(self, dictionary: bool = False)-> Cursor:
         """
         Helper method to quickly grab a cursor.
         Setting dictionary=True returns rows as dicts instead of tuples.
@@ -336,8 +338,122 @@ class KaesDatabase:
     #region Exams
     def get_all_exams(self):
         cursor = self.get_cursor(dictionary=True)
-        cursor.execute("SELECT id, name, date, time, location, duration, capacity, status FROM exams")
+        cursor.execute("SELECT id, name, description FROM exams")
         return cursor.fetchall()
+
+    def get_exam_by_id(self, exam_id):
+        cursor = self.get_cursor()
+        cursor.execute(
+            """
+            SELECT e.id           AS exam_id,
+                   e.name         AS exam_name,
+                   e.description  AS exam_description,
+                   q.id           AS question_id,
+                   q.question     AS question_text,
+                   q.category     AS question_category,
+                   q.modifier     AS question_modifier,
+                   c.name         AS category_name
+            FROM exams e
+                     LEFT JOIN examquestions eq ON e.id = eq.exam
+                     LEFT JOIN questions q ON eq.question = q.id
+                     LEFT JOIN categories c ON q.category = c.category_id
+            WHERE e.id = %s
+            """, (exam_id,)
+        )
+        rows = cursor.fetchall()
+
+        if not rows:
+            return None
+
+        # Build the base exam info from the first row
+        exam = {
+            "id": rows[0]["exam_id"] if isinstance(rows[0], dict) else rows[0][0],
+            "name": rows[0]["exam_name"] if isinstance(rows[0], dict) else rows[0][1],
+            "description": rows[0]["exam_description"] if isinstance(rows[0], dict) else rows[0][2],
+            "questions": []
+        }
+
+        # Populate the questions list if any exist
+        for row in rows:
+            # Handle both dictionary and tuple cursor factories safely
+            q_id = row["question_id"] if isinstance(row, dict) else row[3]
+
+            if q_id is not None:  # Ensure there is actually a question linked
+                question_data = {
+                    "id": q_id,
+                    "text": row["question_text"] if isinstance(row, dict) else row[4],
+                    "category_id": row["question_category"] if isinstance(row, dict) else row[5],
+                    "modifier": row["question_modifier"] if isinstance(row, dict) else row[6],
+                    "category_name": row["category_name"] if isinstance(row, dict) else row[7]
+                }
+                exam["questions"].append(question_data)
+
+        return exam
+
+    def create_exam(self, exam_name, exam_description):
+        cursor = self.get_cursor()
+        cursor.execute(
+            """
+            INSERT INTO exams (name, description)
+            VALUES (%s, %s)
+            """,
+            (exam_name, exam_description),
+        )
+        self.commit()
+
+    def add_question_to_exam(self, exam_id: int, question_id: int):
+        """Links an existing question ID to an exam ID in the junction table."""
+        cursor = self.get_cursor()
+        cursor.execute(
+            """
+            INSERT INTO examquestions (exam, question)
+            VALUES (%s, %s)
+            """,
+            (exam_id, question_id),
+        )
+        self.commit()
+
+    def create_question(self, question, category, modifier):
+        cursor = self.get_cursor()
+        cursor.execute(
+            """
+            INSERT INTO questions (question, category, modifier)
+            VALUES (%s, %s, %s)
+            """,
+            (question, category, modifier),
+        )
+        self.commit()
+        return cursor.lastrowid
+
+    def edit_question(self, questionid, question, category, modifier):
+        cursor = self.get_cursor()
+        cursor.execute(
+            """
+            UPDATE questions
+            SET question = %s, category = %s, modifier = %s
+            WHERE id = %s
+            """,
+            (question, category, modifier, questionid),
+        )
+        self.commit()
+
+    def create_category(self, categoryname):
+        cursor = self.get_cursor()
+        cursor.execute(
+            """
+            INSERT INTO categories (name)
+            VALUES (%s)
+            """,
+            (categoryname,),
+        )
+        self.commit()
+        return cursor.lastrowid
+
+    def get_all_categories(self):
+        cursor = self.get_cursor(dictionary=True)
+        cursor.execute("SELECT category_id, name FROM categories")
+        categories = cursor.fetchall()
+        return categories
     #endregion
 
 
