@@ -1,24 +1,28 @@
 {% extends 'template.html' %}
 {% block body %}
-<div class="content-wrapper">
-    <header class="app-header">
-        <h1>Welkom bij KAES, {{ g.username }}</h1>
-    </header>
+    <div class="content-wrapper">
+        <header class="app-header">
+            <h1>Welkom bij KAES, {{ g.username }}</h1>
+        </header>
 
-    <main class="dashboard-grid">
-        {% if permission_required('manage_users') %}
-            <a href="{{ url_for('user_management') }}" class="nav-card">👥 User Management</a>
-        {% endif %}
+        <main class="dashboard-grid">
+            {% if permission_required('manage_users') %}
+                <a href="{{ url_for('user_management') }}" class="nav-card">👥 User Management</a>
+            {% endif %}
 
-        {% if permission_required('admin') %}
-            <a href="{{ url_for('permission_management') }}" class="nav-card">🔑 Permission Management</a>
-        {% endif %}
+            {% if permission_required('admin') %}
+                <a href="{{ url_for('permission_management') }}" class="nav-card">🔑 Permission Management</a>
+            {% endif %}
 
-        {% if permission_required_or('manage_exams', 'admin') %}
-            <a href="{{ url_for('exam_management') }}" class="nav-card">📝 Exam Management</a>
-        {% endif %}
+            {% if permission_required_or('manage_exams', 'admin') %}
+                <a href="{{ url_for('exam_management') }}" class="nav-card">📝 Exam Management</a>
+            {% endif %}
 
-        <a href="{{ url_for('logout') }}" class="nav-card logout">🚪 Logout</a>
-    </main>
-</div>
+            {% if permission_required('manage_groups') %}
+                <a href="{{ url_for('group_management') }}" class="nav-link">Group Management</a>
+            {% endif %}
+
+            <a href="{{ url_for('logout') }}" class="nav-card logout">🚪 Logout</a>
+        </main>
+    </div>
 {% endblock body %}

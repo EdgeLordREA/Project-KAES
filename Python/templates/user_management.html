@@ -1,124 +1,101 @@
 {% extends 'template.html' %}
 {% block body %}
-<div class="content-wrapper">
-    <header class="app-header">
-        <h1>User Management</h1>
-        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
-    </header>
+# User Management
 
-    <div class="card">
-        <h2>Create New User</h2>
-        <form method="POST" action="{{ url_for('user_management') }}" style="background:transparent; border:none; padding:0; box-shadow:none; margin:0;">
-            {{ form.hidden_tag() }}
-            <div class="form-group">
-                {{ form.username.label }}
-                {{ form.username(class="form-control") }}
-            </div>
-            <div class="form-group">
-                {{ form.password.label }}
-                {{ form.password(class="form-control") }}
-            </div>
-            {{ form.submit(class="btn btn-primary", style="width: auto;") }}
-        </form>
+[← Back to Dashboard]({{ url_for('dashboard') }})
+
+## Create New User
+<form method="POST" action="{{ url_for('user_management') }}">
+    {{ form.hidden_tag() }}
+
+    <div class="mb-3">
+        {{ form.username.label }}
+        {{ form.username(class="form-control") }}
+        {% for error in form.username.errors %}
+            <span class="text-danger">{{ error }}</span>
+        {% endfor %}
     </div>
 
-    <h2>Existing Users</h2>
-    <div class="table-responsive">
-        <table>
-            <thead>
+    <div class="mb-3">
+        {{ form.password.label }}
+        {{ form.password(class="form-control") }}
+        {% for error in form.password.errors %}
+            <span class="text-danger">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    <div class="mb-3">
+        {{ form.group.label }}
+        {{ form.group(class="form-select") }}
+        {% for error in form.group.errors %}
+            <span class="text-danger">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    {{ form.submit(class="btn btn-primary", style="width: auto;") }}
+</form>
+
+## Existing Users
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Username</th>
+            <th>Group</th>
+            <th>Created At</th>
+            <th>Permissions</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for user in users %}
             <tr>
-                <th style="width: 60px;">ID</th>
-                <th>Username</th>
-                <th>Created At</th>
-                <th>Permissions</th>
-                <th style="width: 120px; text-align: right;">Actions</th>
-            </tr>
-            </thead>
-            <tbody>
-            {% for user in users %}
-                <tr>
-                    <td>{{ user.id }}</td>
-                    <td><strong>{{ user.username }}</strong></td>
-                    <td class="text-muted">{{ user.create_time }}</td>
-                    <td>
-                        <form method="POST" action="{{ url_for('update_permissions', user_id=user.id) }}" class="user-perm-form">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <div class="perm-checkbox-group">
-                                {% for perm in available_permissions %}
-                                    <label class="perm-label">
-                                        <input type="checkbox"
-                                               name="permissions_{{ user.id }}"
-                                               value="{{ perm.id }}"
-                                               data-id="{{ perm.id }}"
-                                               data-parent-id="{{ perm.parent_id if perm.parent_id else 'None' }}"
-                                               {% if perm.name in user.permissions %}checked{% endif %}
-                                               {% if user.username == g.username or ('admin' in user.permissions and 'admin' not in g.user_permissions) or (perm.name not in g.user_permissions) %}disabled{% endif %}>
-                                        <span class="perm-text">{{ perm.name }}</span>
-                                    </label>
-                                {% endfor %}
-                                {% if user.username != g.username %}
-                                    <button type="submit" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.85rem; margin-left: 0.5rem;">Save</button>
-                                {% endif %}
+                <td>{{ user.id }}</td>
+                <td>{{ user.username }}</td>
+                <td>
+                    <form method="POST" action="{{ url_for('update_user_group', user_id=user.id) }}" style="display:inline;">
+                        <select name="group_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="0" {% if not user.group %}selected{% endif %}>No Group</option>
+                            {% for group in groups %}
+                                <option value="{{ group.id }}" {% if user.group == group.id %}selected{% endif %}>{{ group.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                </td>
+                <td>{{ user.create_time }}</td>
+                <td>
+                    <form method="POST" action="{{ url_for('update_permissions', user_id=user.id) }}">
+                        {% for perm in available_permissions %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox"
+                                       name="permissions_{{ user.id }}"
+                                       value="{{ perm.id }}"
+                                       id="perm_{{ user.id }}_{{ perm.id }}"
+                                       {% if perm.name in user.permissions %}checked{% endif %}
+                                       {% if user.username == g.username %}disabled{% endif %}>
+                                <label class="form-check-label" for="perm_{{ user.id }}_{{ perm.id }}">
+                                    {{ perm.name }}
+                                </label>
                             </div>
-                        </form>
-                    </td>
-                    <td style="text-align: right;">
-                        {% if user.id != g.user_id %}
-                            <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" onsubmit="return confirm('Are you sure you want to delete user: {{ user.username }}?');" style="display:inline;">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn btn-danger" style="padding: 4px 10px; font-size: 0.85rem;">Delete</button>
-                            </form>
-                        {% else %}
-                            <span style="color: var(--text-muted); font-style: italic; font-size: 0.9rem;">Current Session</span>
+                        {% endfor %}
+                        {% if user.username != g.username %}
+                            <button type="submit" class="btn btn-sm btn-primary mt-2">Save</button>
                         {% endif %}
-                    </td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const forms = document.querySelectorAll('.user-perm-form');
-        forms.forEach(form => {
-            const checkboxes = form.querySelectorAll('input[type="checkbox"]');
-            function updateInheritance() {
-                checkboxes.forEach(cb => {
-                    if (cb.hasAttribute('data-inherited')) {
-                        cb.checked = false;
-                        cb.disabled = false;
-                        cb.removeAttribute('data-inherited');
-                    }
-                    cb.closest('.perm-label').classList.remove('inherited-checked');
-                });
-
-                let checkedIds = new Set();
-                checkboxes.forEach(cb => { if (cb.checked) checkedIds.add(cb.getAttribute('data-id')); });
-
-                let changesMade = true;
-                while (changesMade) {
-                    changesMade = false;
-                    checkboxes.forEach(cb => {
-                        const parentId = cb.getAttribute('data-parent-id');
-                        const currentId = cb.getAttribute('data-id');
-                        if (parentId !== 'None' && checkedIds.has(parentId)) {
-                            if (!cb.hasAttribute('data-inherited')) {
-                                checkedIds.add(currentId);
-                                cb.checked = true;
-                                cb.disabled = true;
-                                cb.setAttribute('data-inherited', 'true');
-                                cb.closest('.perm-label').classList.add('inherited-checked');
-                                changesMade = true;
-                            }
-                        }
-                    });
-                }
-            }
-            checkboxes.forEach(cb => cb.addEventListener('change', updateInheritance));
-            updateInheritance();
-        });
-    });
-</script>
+                    </form>
+                </td>
+                <td>
+                    {% if user.id != g.user_id %}
+                        <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}"
+                              onsubmit="return confirm('Are you sure you want to delete this user?');"
+                              style="display:inline;">
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                    {% else %}
+                        <span class="badge bg-secondary">Current Session</span>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
 {% endblock body %}

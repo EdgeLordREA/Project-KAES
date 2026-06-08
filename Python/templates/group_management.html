@@ -1,0 +1,56 @@
+{% extends 'template.html' %}
+{% block body %}
+# Group Management
+
+[← Back to Dashboard]({{ url_for('dashboard') }})
+
+## Create New Group
+<form method="POST" action="{{ url_for('group_management') }}">
+    {{ form.hidden_tag() }}
+    
+    <div class="mb-3">
+        {{ form.group_name.label }}
+        {{ form.group_name(class="form-control", placeholder="Enter group name") }}
+        {% for error in form.group_name.errors %}
+            <span class="text-danger">{{ error }}</span>
+        {% endfor %}
+    </div>
+    
+    {{ form.submit(class="btn btn-primary", style="width: auto;") }}
+</form>
+
+## Existing Groups
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Group Name</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for group in groups %}
+            <tr>
+                <td>{{ group.id }}</td>
+                <td>
+                    <form method="POST" action="{{ url_for('update_group', group_id=group.id) }}" style="display:inline;">
+                        <input type="text" name="group_name" value="{{ group.name }}" class="form-control form-control-sm" style="width: 200px; display:inline;">
+                        <button type="submit" class="btn btn-sm btn-primary">Update</button>
+                    </form>
+                </td>
+                <td>
+                    <form method="POST" action="{{ url_for('delete_group', group_id=group.id) }}" 
+                          onsubmit="return confirm('Are you sure you want to delete this group? Users will be unassigned.');" 
+                          style="display:inline;">
+                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                    </form>
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="3">No groups found. Use the form above to create one!</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock body %}

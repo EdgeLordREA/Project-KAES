@@ -1,4 +1,4 @@
-from forms import CreateExamForm
+from forms import CreateExamForm, CreateGroupForm
 import sqlite3
 from datetime import timedelta
 from functools import wraps
@@ -52,11 +52,13 @@ def close_db(error):
     if db_wrapper is not None:
         db_wrapper.close_connection()
 
+
 def get_db() -> kaes_database:
     if 'db_wrapper' not in g:
         # Instantiates the class wrapper pulling an isolated safe cursor link from the pool
         g.db_wrapper = kaes_database()
     return g.db_wrapper
+
 
 # --- Sliding Timer Reset & Live DB Authorization ---
 @app.before_request
@@ -91,6 +93,7 @@ def has_permission(permission_name):
         return True
     return False
 
+
 def permission_required_or(*args):
     if not args:
         raise ValueError("At least one permission must be provided")
@@ -101,6 +104,7 @@ def permission_required_or(*args):
             return True
     return False
 
+
 def permission_required_and(*args):
     if not args:
         raise ValueError("At least one permission must be provided")
@@ -110,6 +114,7 @@ def permission_required_and(*args):
         if permission not in g.user_permissions:
             return False
     return True
+
 
 # pyrefly: ignore [unsupported-operation]
 app.jinja_env.globals['permission_required'] = has_permission
@@ -253,6 +258,24 @@ def update_permissions(user_id):
     flash("Permissions updated successfully.", "success")
     return redirect(url_for('user_management'))
 
+
+@app.route('/user_management/update_group/<int:user_id>', methods=['POST'])
+@permission_required('manage_users')
+def update_user_group(user_id):
+    import flask
+    db = get_db()
+
+    if g.user_id == user_id:
+        flash("You cannot alter your own group assignment!", "danger")
+        return redirect(url_for('user_management'))
+
+    group_id = flask.request.form.get('group_id')
+    group_id = int(group_id) if group_id and group_id != '0' else None
+
+    db.update_user_group(user_id, group_id)
+    flash("User group updated successfully.", "success")
+    return redirect(url_for('user_management'))
+
 # endregion
 # region Permission Management
 @app.route('/permission_management', methods=['GET', 'POST'])
@@ -297,16 +320,42 @@ def permission_management():
             return redirect(url_for('permission_management'))
 
     return render_template('permission_management.html', form=form, permissions=all_permissions)
+
+
 # endregion
-#region Exam Management
+# region Exam Management
 @app.route('/exam_management', methods=['GET', 'POST'])
+@permission_required('create_exams')
 def exam_management():
-    create_exam = CreateExamForm()
-    exams = get_db().get_all_exams()
-    return render_template('exam_management.html', form=create_exam, exams=exams)
+    form = CreateExamForm()
+    db = get_db()
+
+    if form.validate_on_submit():
+        db.create_exam(form.exam_name.data, form.exam_description.data)
+        flash(f"Exam '{form.exam_name.data}' created successfully!", "success")
+        return redirect(url_for('exam_management'))
+
+    exams = db.get_all_exams()
+    return render_template('exam_management.html', form=form, exams=exams)
 
 
-# Add these inside your Exam Management section in app.py
+@app.route('/exam_management/delete/<int:examid>', methods=['POST'])
+@permission_required('manage_exams')
+def delete_exam(examid: int):
+    db = get_db()
+    db.delete_exam(examid)
+    flash(f"Exam with ID {examid} deleted successfully!", "success")
+    return redirect(url_for('exam_management'))
+
+
+@app.route('/exam_management/permanent_delete/<int:examid>', methods=['POST'])
+@permission_required('admin')  # STRICTLY ADMIN ONLY
+def permanent_delete_exam(examid: int):
+    db = get_db()
+    db.permanent_delete_exam(examid)
+    flash(f"Exam with ID {examid} PERMANENTLY deleted successfully!", "danger")
+    return redirect(url_for('exam_management'))
+
 
 @app.route('/exam_management/edit/<int:examid>', methods=['GET', 'POST'])
 @permission_required('manage_exams')
@@ -315,17 +364,14 @@ def exam_editor(examid: int):
         flash("Exam ID cannot be None.", "danger")
         return redirect(url_for('exam_management'))
 
-    db = get_db()  # Used get_db() for pool safety consistent with your other routes
+    db = get_db()
     exam = db.get_exam_by_id(examid)
 
     if not exam:
         flash("Exam not found.", "danger")
         return redirect(url_for('exam_management'))
 
-    # Fetch all categories to populate the dropdown selection
     categories = db.get_all_categories()
-
-    # Check if user has the specific permission to add a new category dynamically
     can_create_category = has_permission('create_categories')
 
     return render_template(
@@ -341,7 +387,6 @@ def exam_editor(examid: int):
 def save_question():
     import flask
     db = get_db()
-
     exam_id = flask.request.form.get('exam_id')
     question_id = flask.request.form.get('question_id')
     question_text = flask.request.form.get('question_text')
@@ -349,7 +394,6 @@ def save_question():
     new_category_name = flask.request.form.get('new_category_name')
     modifier = flask.request.form.get('modifier')
 
-    # 1. Handle dynamic new category creation if selected and allowed
     if category_id == 'NEW' and new_category_name:
         if not has_permission('create_categories'):
             flash("You do not have permission to create categories.", "danger")
@@ -357,9 +401,7 @@ def save_question():
         category_id = db.create_category(new_category_name.strip())
         flash(f"Category '{new_category_name}' created successfully.", "success")
 
-    # 2. Update the existing question attributes natively
     db.edit_question(question_id, question_text, category_id, modifier)
-
     flash("Question updated successfully.", "success")
     return redirect(url_for('exam_editor', examid=exam_id))
 
@@ -369,14 +411,12 @@ def save_question():
 def add_question_to_exam():
     import flask
     db = get_db()
-
     exam_id = flask.request.form.get('exam_id')
     question_text = flask.request.form.get('question_text')
     category_id = flask.request.form.get('category_id')
     new_category_name = flask.request.form.get('new_category_name')
     modifier = flask.request.form.get('modifier')
 
-    # 1. Handle dynamic new category creation if selected and allowed
     if category_id == 'NEW' and new_category_name:
         if not has_permission('create_categories'):
             flash("You do not have permission to create categories.", "danger")
@@ -388,20 +428,94 @@ def add_question_to_exam():
         return redirect(url_for('exam_editor', examid=exam_id))
 
     try:
-        # 2. Create the question in the global pool
-        # Cast modifier to int to match database schema expectations
-        # pyrefly: ignore [bad-argument-type]
         new_question_id = db.create_question(question_text, int(category_id), int(modifier))
-
-        # 3. Link the new question specifically to this exam
-        # pyrefly: ignore [bad-argument-type]
         db.add_question_to_exam(int(exam_id), new_question_id)
-
         flash("Question created and added to exam successfully.", "success")
     except Exception as e:
         flash(f"Error adding question: {str(e)}", "danger")
 
     return redirect(url_for('exam_editor', examid=exam_id))
-#endregion
+
+
+# --- NEW: Soft Delete Question ---
+@app.route('/exam_management/delete_question/<int:questionid>', methods=['POST'])
+@permission_required('manage_exams')
+def delete_question(questionid: int):
+    import flask
+    db = get_db()
+    exam_id = flask.request.form.get('examid')  # Passed to redirect back to the correct exam
+    db.delete_question(questionid)
+    flash("Question deleted successfully.", "success")
+    if exam_id:
+        return redirect(url_for('exam_editor', examid=exam_id))
+    return redirect(url_for('exam_management'))
+
+
+# --- NEW: Permanent Delete Question (ADMIN ONLY) ---
+@app.route('/exam_management/permanent_delete_question/<int:questionid>', methods=['POST'])
+@permission_required('admin')
+def permanent_delete_question(questionid: int):
+    import flask
+    db = get_db()
+    exam_id = flask.request.form.get('examid')  # Passed to redirect back to the correct exam
+    db.permanent_delete_question(questionid)
+    flash("Question PERMANENTLY deleted successfully!", "danger")
+    if exam_id:
+        return redirect(url_for('exam_editor', examid=exam_id))
+    return redirect(url_for('exam_management'))
+
+
+# region Group Management Routes
+@app.route('/group_management', methods=['GET', 'POST'])
+@permission_required('manage_groups')
+def group_management():
+    if 'user' not in session:
+        return redirect(url_for('log_in'))
+
+    db = get_db()
+    form = CreateGroupForm()
+
+    # Handle group creation
+    if form.validate_on_submit():
+        try:
+            if form.group_name.data:
+                db.create_group(form.group_name.data)
+                flash(f"Group '{form.group_name.data}' created successfully!", "success")
+                return redirect(url_for('group_management'))
+        except Exception as e:
+            flash(f"Error creating group: {str(e)}", "danger")
+
+    # Fetch all groups
+    all_groups = db.get_all_groups()
+
+    return render_template('group_management.html', form=form, groups=all_groups)
+
+
+@app.route('/group_management/update/<int:group_id>', methods=['POST'])
+@permission_required('manage_groups')
+def update_group(group_id):
+    import flask
+    db = get_db()
+    new_name = flask.request.form.get('group_name')
+
+    if new_name:
+        db.update_group(group_id, new_name)
+        flash("Group updated successfully.", "success")
+
+    return redirect(url_for('group_management'))
+
+
+@app.route('/group_management/delete/<int:group_id>', methods=['POST'])
+@permission_required('manage_groups')
+def delete_group(group_id):
+    db = get_db()
+    db.delete_group(group_id)
+    flash("Group deleted successfully.", "success")
+    return redirect(url_for('group_management'))
+
+
+# endregion
+
+# endregion
 if __name__ == '__main__':
     app.run(debug=True)

@@ -10,7 +10,7 @@ import paramiko
 
 import SECRETS
 
-#region pooling
+# region pooling
 # Global references for our single application-level tunnel pipeline and connection pool
 _global_transport = None
 _local_tunnel_port = None
@@ -123,18 +123,20 @@ def initialize_global_tunnel():
     except Exception as error:
         print(f"Critical error initializing global tunnel pipeline: {error}")
         raise
-#endregion
+
+
+# endregion
 
 # noinspection PyBroadException
 class KaesDatabase:
-    #region boilerplate
+    # region boilerplate
     def __init__(self):
         if _connection_pool is None:
             raise RuntimeError("Database pool has not been initialized. Call initialize_global_tunnel() first.")
         # Seamlessly grab a completely clean, thread-isolated connection from the pool
         self.connection = _connection_pool.get_connection()
 
-    def get_cursor(self, dictionary: bool = False)-> Cursor:
+    def get_cursor(self, dictionary: bool = False) -> Cursor:
         """
         Helper method to quickly grab a cursor.
         Setting dictionary=True returns rows as dicts instead of tuples.
@@ -165,7 +167,8 @@ class KaesDatabase:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close_connection()
-#endregion
+
+    # endregion
 
     # region authentication
     def login(self, username: str, password: str) -> bool:
@@ -189,21 +192,21 @@ class KaesDatabase:
     # endregion
 
     # region users
-    def add_user(self, username: str, password: str):
+    def add_user(self, username: str, password: str, group_id: int | None = None):
         cursor = self.get_cursor()
         password_hash = self._hash_password(password)
 
         cursor.execute(
-            "INSERT INTO users (username, password) VALUES (%s, %s)",
-            (username, password_hash),
+            "INSERT INTO users (username, password, `group`) VALUES (%s, %s, %s)",
+            (username, password_hash, group_id),
         )
         self.commit()
 
     def get_all_users(self):
-        """Fetches all users and their associated permissions."""
+        """Fetches all users and their associated permissions and groups."""
         cursor = self.get_cursor(dictionary=True)
 
-        cursor.execute("SELECT id, username, create_time FROM users")
+        cursor.execute("SELECT id, username, create_time, `group` FROM users")
         users = cursor.fetchall()
 
         cursor.execute(
@@ -221,16 +224,27 @@ class KaesDatabase:
 
         for user in users:
             user["permissions"] = permissions_by_user.get(user["id"], [])
+            # Fetch group name if user has a group
+            if user["group"]:
+                cursor.execute("SELECT name FROM groups WHERE id = %s", (user["group"],))
+                group_result = cursor.fetchone()
+                user["group_name"] = group_result["name"] if group_result else None
+            else:
+                user["group_name"] = None
 
         return users
 
     def delete_user(self, user_id: int):
         """Deletes a user and their associated permissions cascadingly."""
         cursor = self.get_cursor()
+        cursor.execute("UPDATE users SET deleted = %s WHERE id = %s", (1, user_id,))
+        self.commit()
+
+    def permanent_delete_user(self, user_id: int):
+        cursor = self.get_cursor()
         cursor.execute("DELETE FROM userpermissions WHERE user = %s", (user_id,))
         cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
         self.commit()
-
     # endregion
 
     # region permissions
@@ -334,8 +348,9 @@ class KaesDatabase:
             "id": user["id"],
             "permissions": full_permissions,
         }
+
     # endregion
-    #region Exams
+    # region Exams
     def get_all_exams(self):
         cursor = self.get_cursor(dictionary=True)
         cursor.execute("SELECT id, name, description FROM exams")
@@ -345,14 +360,14 @@ class KaesDatabase:
         cursor = self.get_cursor()
         cursor.execute(
             """
-            SELECT e.id           AS exam_id,
-                   e.name         AS exam_name,
-                   e.description  AS exam_description,
-                   q.id           AS question_id,
-                   q.question     AS question_text,
-                   q.category     AS question_category,
-                   q.modifier     AS question_modifier,
-                   c.name         AS category_name
+            SELECT e.id          AS exam_id,
+                   e.name        AS exam_name,
+                   e.description AS exam_description,
+                   q.id          AS question_id,
+                   q.question    AS question_text,
+                   q.category    AS question_category,
+                   q.modifier    AS question_modifier,
+                   c.name        AS category_name
             FROM exams e
                      LEFT JOIN examquestions eq ON e.id = eq.exam
                      LEFT JOIN questions q ON eq.question = q.id
@@ -401,6 +416,26 @@ class KaesDatabase:
         )
         self.commit()
 
+    def delete_exam(self, exam_id: int):
+        cursor = self.get_cursor()
+        cursor.execute(
+            """
+            UPDATE exams SET deleted = %s WHERE id = %s
+            """,
+            (1, exam_id),
+        )
+        self.commit()
+
+    def permanent_delete_exam(self, exam_id: int):
+        cursor = self.get_cursor()
+        cursor.execute(
+            """
+            DELETE FROM exams WHERE id = %s
+            """,
+            (exam_id,),
+        )
+        self.commit()
+
     def add_question_to_exam(self, exam_id: int, question_id: int):
         """Links an existing question ID to an exam ID in the junction table."""
         cursor = self.get_cursor()
@@ -430,10 +465,32 @@ class KaesDatabase:
         cursor.execute(
             """
             UPDATE questions
-            SET question = %s, category = %s, modifier = %s
+            SET question = %s,
+                category = %s,
+                modifier = %s
             WHERE id = %s
             """,
             (question, category, modifier, questionid),
+        )
+        self.commit()
+
+    def delete_question(self, questionid):
+        cursor = self.get_cursor()
+        cursor.execute(
+            """
+            UPDATE questions SET deleted = %s WHERE id = %s
+            """,
+            (1, questionid),
+        )
+        self.commit()
+
+    def permanent_delete_question(self, questionid):
+        cursor = self.get_cursor()
+        cursor.execute(
+            """
+            DELETE FROM questions WHERE id = %s
+            """,
+            (questionid,),
         )
         self.commit()
 
@@ -454,7 +511,67 @@ class KaesDatabase:
         cursor.execute("SELECT category_id, name FROM categories")
         categories = cursor.fetchall()
         return categories
-    #endregion
+    # endregion
+
+    # region Groups
+    def get_all_groups(self):
+        """Fetches all groups."""
+        cursor = self.get_cursor(dictionary=True)
+        cursor.execute("SELECT id, name FROM groups")
+        return cursor.fetchall()
+
+    def create_group(self, group_name: str) -> bool:
+        """Creates a new group."""
+        cursor = self.get_cursor()
+        cursor.execute(
+            "INSERT INTO groups (name) VALUES (%s)",
+            (group_name,)
+        )
+        self.commit()
+        return cursor.rowcount > 0
+
+    def update_group(self, group_id: int, group_name: str) -> bool:
+        """Updates an existing group."""
+        cursor = self.get_cursor()
+        cursor.execute(
+            "UPDATE groups SET name = %s WHERE id = %s",
+            (group_name, group_id)
+        )
+        self.commit()
+        return cursor.rowcount > 0
+
+    def delete_group(self, group_id: int) -> bool:
+        """Deletes a group (sets users to NULL group)."""
+        cursor = self.get_cursor()
+        # First, unset the group for all users in this group
+        cursor.execute(
+            "UPDATE users SET `group` = NULL WHERE `group` = %s",
+            (group_id,)
+        )
+        # Then delete the group
+        cursor.execute("DELETE FROM groups WHERE id = %s", (group_id,))
+        self.commit()
+        return cursor.rowcount > 0
+
+    def get_users_by_group(self, group_id: int):
+        """Fetches all users in a specific group."""
+        cursor = self.get_cursor(dictionary=True)
+        cursor.execute(
+            "SELECT id, username, create_time FROM users WHERE `group` = %s AND deleted = 0",
+            (group_id,)
+        )
+        return cursor.fetchall()
+
+    def update_user_group(self, user_id: int, group_id: int | None) -> bool:
+        """Updates a user's group assignment."""
+        cursor = self.get_cursor()
+        cursor.execute(
+            "UPDATE users SET `group` = %s WHERE id = %s",
+            (group_id, user_id)
+        )
+        self.commit()
+        return cursor.rowcount > 0
+    # endregion
 
 
 # Maintain alias consistency mapping back to the lower-case export wrapper found in app.py
