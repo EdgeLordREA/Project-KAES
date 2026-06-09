@@ -1,10 +1,10 @@
 {% extends 'template.html' %}
 {% block body %}
-# Group Management
+    <h3>Group Management</h3>
 
-[← Back to Dashboard]({{ url_for('dashboard') }})
+<p><a href="{{ url_for('dashboard') }}">← Back to Dashboard</a></p>
 
-## Create New Group
+<h3> Create New Group
 <form method="POST" action="{{ url_for('group_management') }}">
     {{ form.hidden_tag() }}
     
@@ -19,7 +19,7 @@
     {{ form.submit(class="btn btn-primary", style="width: auto;") }}
 </form>
 
-## Existing Groups
+<h3>Existing Groups</h3>
 <table class="table table-striped">
     <thead>
         <tr>

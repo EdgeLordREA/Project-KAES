@@ -1,10 +1,10 @@
 {% extends 'template.html' %}
 {% block body %}
-# User Management
+<h3>User Management</h3>
 
-[← Back to Dashboard]({{ url_for('dashboard') }})
+<p><a href="{{ url_for('dashboard') }}">← Back to Dashboard</a></p>
 
-## Create New User
+<h2>Create New User</h2>
 <form method="POST" action="{{ url_for('user_management') }}">
     {{ form.hidden_tag() }}
 
@@ -25,9 +25,9 @@
     </div>
 
     <div class="mb-3">
-        {{ form.group.label }}
-        {{ form.group(class="form-select") }}
-        {% for error in form.group.errors %}
+        {{ form.user_group.label }}
+        {{ form.user_group(class="form-select") }}
+        {% for error in form.user_group.errors %}
             <span class="text-danger">{{ error }}</span>
         {% endfor %}
     </div>
@@ -35,13 +35,13 @@
     {{ form.submit(class="btn btn-primary", style="width: auto;") }}
 </form>
 
-## Existing Users
+<h3> Existing Users
 <table class="table table-striped">
     <thead>
         <tr>
             <th>ID</th>
             <th>Username</th>
-            <th>Group</th>
+            <th>User Group</th>
             <th>Created At</th>
             <th>Permissions</th>
             <th>Actions</th>
@@ -54,10 +54,10 @@
                 <td>{{ user.username }}</td>
                 <td>
                     <form method="POST" action="{{ url_for('update_user_group', user_id=user.id) }}" style="display:inline;">
-                        <select name="group_id" class="form-select form-select-sm" onchange="this.form.submit()">
-                            <option value="0" {% if not user.group %}selected{% endif %}>No Group</option>
+                        <select name="user_group_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="0" {% if not user.user_group %}selected{% endif %}>No Group</option>
                             {% for group in groups %}
-                                <option value="{{ group.id }}" {% if user.group == group.id %}selected{% endif %}>{{ group.name }}</option>
+                                <option value="{{ group.id }}" {% if user.user_group == group.id %}selected{% endif %}>{{ group.name }}</option>
                             {% endfor %}
                         </select>
                     </form>

@@ -19,7 +19,7 @@
             {% endif %}
 
             {% if permission_required('manage_groups') %}
-                <a href="{{ url_for('group_management') }}" class="nav-link">Group Management</a>
+                <a href="{{ url_for('group_management') }}" class="nav-card">Group Management</a>
             {% endif %}
 
             <a href="{{ url_for('logout') }}" class="nav-card logout">🚪 Logout</a>

@@ -206,7 +206,7 @@ class KaesDatabase:
         """Fetches all users and their associated permissions and groups."""
         cursor = self.get_cursor(dictionary=True)
 
-        cursor.execute("SELECT id, username, create_time, `group` FROM users")
+        cursor.execute("SELECT id, username, create_time, `user_group` FROM users")
         users = cursor.fetchall()
 
         cursor.execute(
@@ -225,8 +225,8 @@ class KaesDatabase:
         for user in users:
             user["permissions"] = permissions_by_user.get(user["id"], [])
             # Fetch group name if user has a group
-            if user["group"]:
-                cursor.execute("SELECT name FROM groups WHERE id = %s", (user["group"],))
+            if user["user_group"]:
+                cursor.execute("SELECT name FROM user_groups WHERE id = %s", (user["group"],))
                 group_result = cursor.fetchone()
                 user["group_name"] = group_result["name"] if group_result else None
             else:
@@ -517,14 +517,14 @@ class KaesDatabase:
     def get_all_groups(self):
         """Fetches all groups."""
         cursor = self.get_cursor(dictionary=True)
-        cursor.execute("SELECT id, name FROM groups")
+        cursor.execute("SELECT id, name FROM user_groups")
         return cursor.fetchall()
 
     def create_group(self, group_name: str) -> bool:
         """Creates a new group."""
         cursor = self.get_cursor()
         cursor.execute(
-            "INSERT INTO groups (name) VALUES (%s)",
+            "INSERT INTO user_groups (name) VALUES (%s)",
             (group_name,)
         )
         self.commit()
@@ -534,7 +534,7 @@ class KaesDatabase:
         """Updates an existing group."""
         cursor = self.get_cursor()
         cursor.execute(
-            "UPDATE groups SET name = %s WHERE id = %s",
+            "UPDATE user_groups SET name = %s WHERE id = %s",
             (group_name, group_id)
         )
         self.commit()
@@ -545,11 +545,11 @@ class KaesDatabase:
         cursor = self.get_cursor()
         # First, unset the group for all users in this group
         cursor.execute(
-            "UPDATE users SET `group` = NULL WHERE `group` = %s",
+            "UPDATE users SET `user_group` = NULL WHERE `user_group` = %s",
             (group_id,)
         )
         # Then delete the group
-        cursor.execute("DELETE FROM groups WHERE id = %s", (group_id,))
+        cursor.execute("DELETE FROM user_groups WHERE id = %s", (group_id,))
         self.commit()
         return cursor.rowcount > 0
 
@@ -557,7 +557,7 @@ class KaesDatabase:
         """Fetches all users in a specific group."""
         cursor = self.get_cursor(dictionary=True)
         cursor.execute(
-            "SELECT id, username, create_time FROM users WHERE `group` = %s AND deleted = 0",
+            "SELECT id, username, create_time FROM users WHERE `user_group` = %s AND deleted = 0",
             (group_id,)
         )
         return cursor.fetchall()
@@ -566,7 +566,7 @@ class KaesDatabase:
         """Updates a user's group assignment."""
         cursor = self.get_cursor()
         cursor.execute(
-            "UPDATE users SET `group` = %s WHERE id = %s",
+            "UPDATE users SET `user_group` = %s WHERE id = %s",
             (group_id, user_id)
         )
         self.commit()

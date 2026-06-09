@@ -32,7 +32,7 @@ class CreateQuestionForm(FlaskForm):
 class CreateUserForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=3, max=25)])
     password = PasswordField('Password', validators=[DataRequired(), Length(min=6, max=25)])
-    group = SelectField('Group', coerce=int, validators=[])  # Will be populated dynamically
+    user_group = SelectField('Group', coerce=int, validators=[])  # Will be populated dynamically
     submit = SubmitField('Create User')
 
 
@@ -42,5 +42,5 @@ class CreateGroupForm(FlaskForm):
 
 
 class UpdateUserGroupForm(FlaskForm):
-    group = SelectField('Group', coerce=int, validators=[])
+    user_group = SelectField('Group', coerce=int, validators=[])
     submit = SubmitField('Update Group')

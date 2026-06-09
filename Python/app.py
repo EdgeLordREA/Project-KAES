@@ -187,8 +187,8 @@ def user_management():
     # Fetch data to present in template
     all_users = db.get_all_users()
     all_permissions = db.get_all_available_permissions()
-
-    return render_template('user_management.html', form=form, users=all_users, available_permissions=all_permissions)
+    all_groups = db.get_all_groups()
+    return render_template('user_management.html', form=form, users=all_users, available_permissions=all_permissions, groups = all_groups)
 
 
 @app.route('/user_management/delete/<int:user_id>', methods=['POST'])
